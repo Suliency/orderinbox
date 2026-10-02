@@ -26,7 +26,8 @@ CREATE TABLE IF NOT EXISTS orders (
     error TEXT,
     processed_at TEXT,
     payload TEXT,
-    log TEXT
+    log TEXT,
+    issues TEXT
 );
 CREATE TABLE IF NOT EXISTS meta (
     key TEXT PRIMARY KEY,
@@ -42,20 +43,29 @@ class Store:
         self.conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self.conn.executescript(SCHEMA)
+        self._migrate()
         self.conn.commit()
+
+    def _migrate(self) -> None:
+        """Lightweight in-place upgrades for databases created by older builds."""
+        cols = {r["name"] for r in self.conn.execute("PRAGMA table_info(orders)")}
+        if "issues" not in cols:
+            self.conn.execute("ALTER TABLE orders ADD COLUMN issues TEXT")
 
     # ------------------------------------------------------------------
     def upsert_order(self, order: ProcessedOrder) -> int:
         payload = json.dumps(order.extraction.model_dump() if order.extraction else None)
         log_json = json.dumps(order.log, ensure_ascii=False)
+        issues_json = json.dumps([i.model_dump() for i in order.issues], ensure_ascii=False)
         cur = self.conn.execute(
             """INSERT INTO orders (uid, source_type, subject, sender, received_at, stored_path,
-                                   status, odoo_order_id, odoo_reference, error, processed_at, payload, log)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+                                   status, odoo_order_id, odoo_reference, error, processed_at, payload, log, issues)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                ON CONFLICT(uid) DO UPDATE SET
                  status=excluded.status, odoo_order_id=excluded.odoo_order_id,
                  odoo_reference=excluded.odoo_reference, error=excluded.error,
-                 processed_at=excluded.processed_at, payload=excluded.payload, log=excluded.log
+                 processed_at=excluded.processed_at, payload=excluded.payload,
+                 log=excluded.log, issues=excluded.issues
             """,
             (
                 order.uid, order.source_type, order.subject, order.sender,
@@ -63,7 +73,7 @@ class Store:
                 order.stored_path, order.status.value, order.odoo_order_id,
                 order.odoo_reference, order.error,
                 order.processed_at.isoformat() if order.processed_at else None,
-                payload, log_json,
+                payload, log_json, issues_json,
             ),
         )
         self.conn.commit()
@@ -136,6 +146,12 @@ class Store:
                 order.extraction = None
         try:
             order.log = json.loads(row["log"] or "[]")
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, TypeError):
             order.log = []
+        if row["issues"]:
+            try:
+                from .models import Issue
+                order.issues = [Issue.model_validate(i) for i in json.loads(row["issues"])]
+            except (json.JSONDecodeError, TypeError, ValueError):
+                order.issues = []
         return order

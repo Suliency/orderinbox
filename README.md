@@ -120,6 +120,26 @@ over XML-RPC and creates `sale.order` drafts on approval. It needs the
 standard `sale` module; a custom `pack_qty`/`min_qty` field is used for
 rules when present.
 
+## The Odoo module (Odoo Apps Store)
+
+`addons/orderinbox` is the in-Odoo face of the product — a review-queue
+module you install in the customer's Odoo (it's what gets listed on the
+[Odoo Apps Store](https://apps.odoo.com)):
+
+- **Incoming orders kanban** — ready / exception / draft-created / rejected,
+  with the validation issues and per-line match scores visible on the card
+- **Approve** builds a draft `sale.order` (customer, PO reference, lines,
+  quoted prices) — in Odoo directly, or via the appliance
+- **Reject** with reason, logged to the chatter
+- **Cron sync** — every 5 minutes it pulls the order list from the
+  appliance's `/api/orders` endpoint (shared token, `ORDERINBOX_API_TOKEN`)
+- **Settings page** — appliance URL, token, thresholds; **standalone mode**
+  works with no appliance at all (manual or pushed records)
+
+```
+appliance ──/api/orders (token)──▶ orderinbox module (Odoo) ──approve──▶ draft sale.order
+```
+
 ## Configuration
 
 Everything is environment variables — see [`.env.example`](.env.example).
@@ -139,6 +159,7 @@ Key ones:
 | `PRICE_DEVIATION_TOLERANCE` | `0.15` | price deviation before warning |
 | `ALLOWED_CURRENCIES` | `USD,CAD,EUR` | currency allowlist |
 | `WEB_PASSWORD` | `orderinbox` | console password |
+| `ORDERINBOX_API_TOKEN` | *(empty = API off)* | shared token for `/api/*` (Odoo module sync) |
 | `ORDERINBOX_DEMO` | `0` | seed the demo dataset on first boot |
 
 ## The console
@@ -155,13 +176,18 @@ Key ones:
 
 ```bash
 pip install -e ".[dev]"
-pytest            # 29 tests: parsing, matching, rules, end-to-end pipeline
+pytest            # 36 tests: parsing, matching, rules, end-to-end pipeline, /api bridge
 orderinbox serve
 ```
 
+The Odoo module under `addons/orderinbox` is tested against a real Odoo 18
+instance: clone [odoo/odoo](https://github.com/odoo/odoo) (branch `18.0`),
+point `--addons-path` at it and this repo's `addons/`, and run
+`odoo -d testdb -i orderinbox --test-enable --test-tags orderinbox`.
+
 ## Roadmap
 
-- Odoo Apps Store module (native app listing + in-Odoo review screen)
+- Odoo Apps Store submission (module built — see above; store listing in progress)
 - Approval workflows with multi-level sign-off and email notifications
 - Price-book / customer-specific pricing rules
 - Scanned-PDF OCR tuning per document family

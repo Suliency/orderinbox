@@ -20,6 +20,7 @@ services:
       - OLLAMA_MODEL=qwen2.5:1.5b
       - ODOO_MODE=mock
       - WEB_PASSWORD=${WEB_PASSWORD:-orderinbox}
+      - ORDERINBOX_API_TOKEN=${ORDERINBOX_API_TOKEN:-demo-bridge-token}
       - ORDERINBOX_DEMO=${ORDERINBOX_DEMO:-1}
     depends_on:
       - ollama

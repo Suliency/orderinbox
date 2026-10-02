@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="action_orderinbox_settings" model="ir.actions.act_window">
+        <field name="name">Settings</field>
+        <field name="res_model">res.config.settings</field>
+        <field name="view_mode">form</field>
+        <field name="target">inline</field>
+        <field name="context">{'module' : 'orderinbox'}</field>
+    </record>
+
+    <menuitem id="menu_orderinbox_root"
+              name="OrderInbox"
+              sequence="25"
+              web_icon="orderinbox,static/description/icon.png"
+              groups="orderinbox.group_orderinbox_user"/>
+
+    <menuitem id="menu_orderinbox_orders"
+              name="Incoming orders"
+              parent="menu_orderinbox_root"
+              action="orderinbox.action_orderinbox_orders"
+              sequence="10"/>
+
+    <menuitem id="menu_orderinbox_settings"
+              name="Settings"
+              parent="menu_orderinbox_root"
+              action="orderinbox.action_orderinbox_settings"
+              groups="orderinbox.group_orderinbox_manager"
+              sequence="90"/>
+
+</odoo>

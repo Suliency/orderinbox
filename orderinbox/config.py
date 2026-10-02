@@ -75,6 +75,9 @@ class Settings:
     web_host: str = field(default_factory=lambda: os.environ.get("WEB_HOST", "0.0.0.0"))
     web_port: int = field(default_factory=lambda: int(os.environ.get("WEB_PORT", "8501")))
     web_password: str = field(default_factory=lambda: os.environ.get("WEB_PASSWORD", "orderinbox"))
+    # Token for the /api/* bridge (used by the Odoo Apps Store module to
+    # pull orders and to trigger approvals). Empty = API disabled.
+    api_token: str = field(default_factory=lambda: os.environ.get("ORDERINBOX_API_TOKEN", ""))
 
     # --- misc -----------------------------------------------------------
     log_level: str = field(default_factory=lambda: os.environ.get("LOG_LEVEL", "INFO"))

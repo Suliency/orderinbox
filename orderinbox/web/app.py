@@ -19,7 +19,7 @@ from datetime import datetime
 from pathlib import Path
 
 from fastapi import Cookie, FastAPI, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -48,10 +48,67 @@ def create_app(settings: Settings, ctx: AppContext) -> FastAPI:
 
     @app.middleware("http")
     async def auth_guard(request: Request, call_next):
-        if not request.url.path.startswith("/static"):
-            if not authed(request) and request.url.path not in ("/login", "/logout"):
-                return RedirectResponse("/login?next=" + request.url.path, status_code=303)
+        path = request.url.path
+        if not path.startswith("/static") and not path.startswith("/api/"):
+            if not authed(request) and path not in ("/login", "/logout"):
+                return RedirectResponse("/login?next=" + path, status_code=303)
         return await call_next(request)
+
+    # ------------------------------------------------------------------
+    # /api/* — bridge for the Odoo Apps Store module (token auth, JSON)
+    def _api_auth(request: Request) -> bool:
+        if not settings.api_token:
+            return False
+        provided = ""
+        authz = request.headers.get("Authorization", "")
+        if authz.startswith("Bearer "):
+            provided = authz[7:]
+        else:
+            provided = request.query_params.get("token", "")
+        return secrets.compare_digest(provided, settings.api_token)
+
+    def _order_payload(o) -> dict:
+        ext = o.extraction
+        return {
+            "uid": o.uid,
+            "subject": o.subject,
+            "sender": o.sender,
+            "received_at": o.received_at.isoformat(sep=" ") if o.received_at else None,
+            "status": o.status.value,
+            "customer_as_written": ext.customer_name_as_written if ext else "",
+            "customer_matched": ext.customer_matched if ext else "",
+            "customer_score": ext.customer_match_score if ext else 0.0,
+            "po_number": ext.po_number if ext else "",
+            "po_date": ext.po_date if ext else "",
+            "currency": ext.currency if ext else "",
+            "total": ext.total if ext else 0.0,
+            "confidence": ext.confidence if ext else 0.0,
+            "extract_method": ext.extract_method if ext else "",
+            "payment_terms": ext.payment_terms if ext else "",
+            "notes": ext.notes if ext else "",
+            "lines": [
+                {
+                    "line_no": l.line_no,
+                    "sku_as_written": l.sku_as_written,
+                    "description": l.description,
+                    "quantity": l.quantity,
+                    "unit": l.unit,
+                    "unit_price": l.unit_price,
+                    "sku_matched": l.sku_matched,
+                    "match_score": l.match_score,
+                    "match_method": l.match_method.value,
+                    "catalog_price": l.catalog_price,
+                }
+                for l in ext.lines
+            ] if ext else [],
+            "issues": [
+                {"severity": i.severity.value, "code": i.code, "message": i.message,
+                 "line": i.line, "suggested_fix": i.suggested_fix}
+                for i in o.issues
+            ],
+            "error": o.error,
+            "odoo_reference": o.odoo_reference,
+        }
 
     # ------------------------------------------------------------------
     @app.get("/login", response_class=HTMLResponse)
@@ -176,5 +233,71 @@ def create_app(settings: Settings, ctx: AppContext) -> FastAPI:
     def test_odoo(request: Request):
         ok, message = ctx.test_odoo()
         return {"ok": ok, "message": message}
+
+    # ------------------------------------------------------------------
+    # /api/* — bridge consumed by the Odoo module (orderinbox in Odoo):
+    #   GET  /api/orders               list of order payloads (token)
+    #   GET  /api/orders/{uid}         one order payload (token)
+    #   POST /api/orders/{uid}/approve  create the draft order (token)
+    #   POST /api/orders/{uid}/reject   reject with reason (token)
+    def _api_denied() -> JSONResponse:
+        return JSONResponse({"ok": False, "error": "api disabled or bad token — "
+                                                    "set ORDERINBOX_API_TOKEN"}, status_code=401)
+
+    @app.get("/api/orders")
+    def api_orders(request: Request):
+        if not _api_auth(request):
+            return _api_denied()
+        orders = ctx.store.list_orders(limit=500)
+        return {"ok": True, "orders": [_order_payload(o) for o in orders]}
+
+    @app.get("/api/orders/{uid}")
+    def api_order(request: Request, uid: str):
+        if not _api_auth(request):
+            return _api_denied()
+        order = next((o for o in ctx.store.list_orders(limit=1000) if o.uid == uid), None)
+        if order is None:
+            return JSONResponse({"ok": False, "error": "not found"}, status_code=404)
+        return {"ok": True, "order": _order_payload(order)}
+
+    @app.post("/api/orders/{uid}/approve")
+    def api_approve(request: Request, uid: str):
+        if not _api_auth(request):
+            return _api_denied()
+        order = next((o for o in ctx.store.list_orders(limit=1000) if o.uid == uid), None)
+        if order is None:
+            return JSONResponse({"ok": False, "error": "not found"}, status_code=404)
+        if order.status.value not in ("ready", "exception"):
+            return {"ok": True, "uid": uid, "status": order.status.value,
+                    "reference": order.odoo_reference}
+        try:
+            ctx.pipeline.approve_and_send(order)
+        except Exception as exc:
+            order.add_log(f"approve failed: {exc}")
+            ctx.store.upsert_order(order)
+            return JSONResponse({"ok": False, "error": str(exc)}, status_code=400)
+        return {
+            "ok": True,
+            "uid": uid,
+            "status": order.status.value,
+            "sale_order_id": order.odoo_order_id,
+            "reference": order.odoo_reference,
+        }
+
+    @app.post("/api/orders/{uid}/reject")
+    async def api_reject(request: Request, uid: str):
+        if not _api_auth(request):
+            return _api_denied()
+        order = next((o for o in ctx.store.list_orders(limit=1000) if o.uid == uid), None)
+        if order is None:
+            return JSONResponse({"ok": False, "error": "not found"}, status_code=404)
+        body = {}
+        try:
+            body = await request.json()
+        except Exception:
+            pass
+        reason = (body.get("reason") or "").strip()
+        ctx.pipeline.reject(order, reason)
+        return {"ok": True, "uid": uid, "status": order.status.value}
 
     return app

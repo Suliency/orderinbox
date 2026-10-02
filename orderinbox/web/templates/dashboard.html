@@ -1,0 +1,33 @@
+{% extends "layout.html" %}
+{% block title %}Dashboard · OrderInbox AI{% endblock %}
+{% block content %}
+  <h1>Dashboard</h1>
+  <p class="page-sub">Unattended inbox processing for Odoo. Drafts are created only after a human approves them.</p>
+
+  <div class="cards">
+    <div class="card ok"><div class="n">{{ ready }}</div><div class="l">Ready for approval</div></div>
+    <div class="card err"><div class="n">{{ exceptions }}</div><div class="l">Need review (exceptions)</div></div>
+    <div class="card"><div class="n">{{ sent }}</div><div class="l">Drafts created in Odoo</div></div>
+    <div class="card"><div class="n">{{ counts.get('rejected', 0) }}</div><div class="l">Skipped / rejected</div></div>
+  </div>
+
+  <h2>Recent activity</h2>
+  {% if orders %}
+  <table class="list">
+    <tr><th>Received</th><th>Subject</th><th>Customer</th><th>PO</th><th class="num">Lines</th><th class="num">Total</th><th>Status</th></tr>
+    {% for o in orders %}
+    <tr class="clickable" onclick="location='/orders/{{ o.id }}'">
+      <td>{{ o.received_at | dt if o.received_at else '—' }}</td>
+      <td><a href="/orders/{{ o.id }}">{{ o.subject or o.stored_path.split('/')[-1] }}</a></td>
+      <td>{{ o.extraction.customer_matched if o.extraction else '—' }}</td>
+      <td>{{ o.extraction.po_number if o.extraction else '—' }}</td>
+      <td class="num">{{ o.extraction.lines | length if o.extraction else '—' }}</td>
+      <td class="num">${{ '%.2f' % o.extraction.total if o.extraction else '—' }}</td>
+      <td><span class="badge b-{{ o.status.value }}">{{ o.status.value }}</span></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <div class="panel">No orders yet. Add sample documents or point the app at your inbox (see <a href="/inbox">Inbox</a>).</div>
+  {% endif %}
+{% endblock %}

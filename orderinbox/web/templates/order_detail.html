@@ -1,0 +1,116 @@
+{% extends "layout.html" %}
+{% block title %}{{ o.subject }} · OrderInbox AI{% endblock %}
+{% block content %}
+  {% set e = o.extraction %}
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <div>
+      <h1>{{ o.subject or 'Order' }}</h1>
+      <p class="page-sub" style="margin-bottom:0">
+        Received {{ o.received_at | dt if o.received_at else '—' }} · from <b>{{ o.sender or '—' }}</b>
+        {% if e and e.po_number %} · PO <b>{{ e.po_number }}</b>{% endif %}
+        {% if e and e.po_date %} · dated {{ e.po_date }}{% endif %}
+      </p>
+    </div>
+    <span class="badge b-{{ o.status.value }}">{{ o.status.value }}</span>
+  </div>
+
+  {% if o.status.value in ('ready', 'exception') %}
+  <div class="actions">
+    <form method="post" action="/orders/{{ o.id }}/approve" style="display:flex; gap:8px; align-items:center;">
+      <button class="primary" type="submit">Approve → create draft in Odoo</button>
+      <span class="muted" style="font-size:12.5px;">Creates a DRAFT sales order. Nothing is confirmed until a person confirms it in Odoo.</span>
+    </form>
+    <form method="post" action="/orders/{{ o.id }}/reject" style="display:flex; gap:8px;">
+      <input name="reason" placeholder="Reason (optional)" style="padding:8px 10px; border:1px solid var(--line); border-radius:9px; font:inherit;">
+      <button class="danger" type="submit">Reject</button>
+    </form>
+    <form method="post" action="/orders/{{ o.id }}/reprocess">
+      <button class="small" type="submit">Re-process</button>
+    </form>
+  </div>
+  {% endif %}
+
+  {% if o.status.value == 'sent' %}
+  <div class="panel" style="border-color:#bfdbfe; background:#eff6ff;">
+    <b>Draft created in Odoo ({{ backend }}):</b> {{ o.odoo_reference or o.odoo_order_id }}
+    <span class="muted"> — open it in Odoo to confirm and post.</span>
+  </div>
+  {% endif %}
+
+  {% if o.issues %}
+  <div class="panel">
+    <h3>Validation</h3>
+    {% for i in o.issues %}
+    <div class="issue {{ i.severity.value }}">
+      <span class="code">{{ i.severity.value }} · {{ i.code }}</span>
+      {% if i.line %}<span class="muted">line {{ i.line }}</span>{% endif %}
+      {{ i.message }}
+      {% if i.suggested_fix %}<div class="fix">→ {{ i.suggested_fix }}</div>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% elif o.status.value == 'ready' %}
+  <div class="panel"><h3>Validation</h3><div class="issue">All business rules passed.</div></div>
+  {% endif %}
+
+  {% if e %}
+  <div class="panel">
+    <h3>Extracted order — {{ e.lines | length }} lines · ${{ '%.2f' % e.total }}
+      <span class="chip">{{ e.extract_method }}</span>
+      <span class="chip">confidence {{ '%.0f%%' % (e.confidence * 100) }}</span>
+      {% if e.currency %}<span class="chip">{{ e.currency }}</span>{% endif %}
+    </h3>
+    <table class="lines">
+      <tr>
+        <th class="num">#</th><th>SKU (as written)</th><th>Matched product</th><th>Match</th>
+        <th class="num">Qty</th><th class="num">Unit price</th><th class="num">Catalog price</th><th class="num">Line total</th><th>Notes</th>
+      </tr>
+      {% for l in e.lines %}
+      <tr>
+        <td class="num">{{ l.line_no }}</td>
+        <td>{{ l.sku_as_written or l.description }}</td>
+        <td>{{ l.sku_matched or '—' }}<br><span class="muted" style="font-size:12px;">{{ l.product_name }}</span></td>
+        <td>
+          {% if l.match_score >= 90 %}<span class="score s-hi">{{ '%.0f' % l.match_score }}</span>
+          {% elif l.match_score >= 70 %}<span class="score s-mid">{{ '%.0f' % l.match_score }}</span>
+          {% elif l.match_score > 0 %}<span class="score s-lo">{{ '%.0f' % l.match_score }}</span>
+          {% else %}<span class="score s-none">?</span>{% endif %}
+          <span class="muted" style="font-size:11px;">{{ l.match_method }}</span>
+        </td>
+        <td class="num">{{ '%g' % l.quantity if l.quantity is not none else '—' }} {{ l.unit }}</td>
+        <td class="num">${{ '%.2f' % l.unit_price if l.unit_price is not none else '—' }}</td>
+        <td class="num">${{ '%.2f' % l.catalog_price if l.catalog_price is not none else '—' }}</td>
+        <td class="num">${{ '%.2f' % l.line_total if l.line_total is not none else '—' }}</td>
+        <td class="muted" style="font-size:12px;">{{ l.remarks or '' }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <div class="panel">
+    <h3>Order header</h3>
+    <div class="kv">
+      <span class="k">Customer (as written)</span><span class="v">{{ e.customer_name_as_written or '—' }}</span>
+      <span class="k">Customer (matched)</span><span class="v">{{ e.customer_matched or '—' }}
+        {% if e.customer_match_score %}<span class="score {{ 's-hi' if e.customer_match_score >= 90 else 's-mid' }}">{{ '%.0f' % e.customer_match_score }}</span>{% endif %}
+      </span>
+      <span class="k">Payment terms</span><span class="v">{{ e.payment_terms or '—' }}</span>
+      <span class="k">Ship to</span><span class="v">{{ e.ship_to or '—' }}</span>
+      <span class="k">Notes</span><span class="v">{{ e.notes or '—' }}</span>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if o.error and o.status.value in ('rejected', 'failed') %}
+  <div class="panel"><h3>Note</h3><div class="issue {{ 'error' if o.status.value == 'failed' else '' }}">{{ o.error }}</div></div>
+  {% endif %}
+
+  <div class="panel">
+    <h3>Pipeline log</h3>
+    <div class="log">
+      {% for entry in o.log %}
+      <div><span class="t">{{ entry.at[11:19] if entry.get('at') else '' }} {{ entry.at[:10] if entry.get('at') else '' }}</span>{{ entry.msg }}</div>
+      {% endfor %}
+    </div>
+  </div>
+{% endblock %}

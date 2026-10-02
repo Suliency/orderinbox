@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "orderinbox"
+version = "0.1.0"
+description = "OrderInbox AI — unattended AI order entry for Odoo. Watches the inbox, extracts orders from email/PDF/Excel, matches customers and SKUs, validates business rules, and creates draft sales orders in Odoo."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "OrderInbox AI" }]
+keywords = ["odoo", "erp", "order-entry", "automation", "llm", "invoice", "purchase-order", "ocr"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Web Environment",
+    "Intended Audience :: Manufacturing",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Office/Business",
+]
+dependencies = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+    "typer>=0.12",
+    "pydantic>=2.6",
+    "jinja2>=3.1",
+    "httpx>=0.27",
+    "pdfplumber>=0.11",
+    "openpyxl>=3.1",
+    "rapidfuzz>=3.6",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+gmail = ["google-api-python-client>=2.120", "google-auth>=2.28"]
+ocr = ["pytesseract>=0.10"]
+dev = ["pytest>=8.0", "reportlab>=4.1"]
+
+[project.scripts]
+orderinbox = "orderinbox.cli:app"
+
+[tool.setuptools.packages.find]
+include = ["orderinbox*"]
+
+[tool.setuptools.package-data]
+orderinbox = ["web/templates/*.html", "web/static/*"]

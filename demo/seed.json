@@ -1,0 +1,534 @@
+{
+ "currency": "USD",
+ "partners": [
+  {
+   "id": 1001,
+   "name": "Northline Building Supply",
+   "email": "orders@northlinesupply.com",
+   "phone": "555-0101"
+  },
+  {
+   "id": 1002,
+   "name": "Great Lakes Hardware Co",
+   "email": "purchasing@greatlakeshw.com",
+   "phone": "555-0102"
+  },
+  {
+   "id": 1003,
+   "name": "Prairie Ridge Construction",
+   "email": "ap@prairieridge.build",
+   "phone": "555-0103"
+  },
+  {
+   "id": 1004,
+   "name": "Metro Electrical Wholesale",
+   "email": "orders@metroelectrical.ca",
+   "phone": "555-0104"
+  },
+  {
+   "id": 1005,
+   "name": "Summit Plumbing & Supply",
+   "email": "buy@summitplumbing.com",
+   "phone": "555-0105"
+  },
+  {
+   "id": 1006,
+   "name": "Harbor Point Contractors",
+   "email": "ap@harborpoint.com",
+   "phone": "555-0106"
+  },
+  {
+   "id": 1007,
+   "name": "Blue Heron Builders",
+   "email": "orders@blueheronbuilders.com",
+   "phone": "555-0107"
+  },
+  {
+   "id": 1008,
+   "name": "Cornerstone Renovations",
+   "email": "accounts@cornerstonerenovations.com",
+   "phone": "555-0108"
+  },
+  {
+   "id": 1009,
+   "name": "Westgate Industrial Supply",
+   "email": "po@westgateindustrial.com",
+   "phone": "555-0109"
+  },
+  {
+   "id": 1010,
+   "name": "Cedar Valley Home Centers",
+   "email": "orders@cedarvalley.com",
+   "phone": "555-0110"
+  },
+  {
+   "id": 1011,
+   "name": "Lakeshore Mechanical",
+   "email": "ap@lakeshoremech.com",
+   "phone": "555-0111"
+  },
+  {
+   "id": 1012,
+   "name": "Union Tool Distributors",
+   "email": "orders@uniontool.com",
+   "phone": "555-0112"
+  },
+  {
+   "id": 1013,
+   "name": "Redstone Contracting",
+   "email": "purchasing@redstonecontracting.com",
+   "phone": "555-0113"
+  },
+  {
+   "id": 1014,
+   "name": "Bayside Supply House",
+   "email": "orders@baysidesupply.com",
+   "phone": "555-0114"
+  }
+ ],
+ "products": [
+  {
+   "id": 5001,
+   "default_code": "PLM-101",
+   "name": "Copper Pipe 1/2 in x 10 ft \u2014 Plumbing",
+   "list_price": 29.32,
+   "currency": "USD",
+   "pack_qty": 1,
+   "min_qty": 2,
+   "max_qty": 0,
+   "aliases": [
+    "CUP-101",
+    "CP101"
+   ]
+  },
+  {
+   "id": 5002,
+   "default_code": "PLM-102",
+   "name": "Copper Pipe 3/4 in x 10 ft \u2014 Plumbing",
+   "list_price": 13.46,
+   "currency": "USD",
+   "pack_qty": 4,
+   "min_qty": 2,
+   "max_qty": 0,
+   "aliases": [
+    "CUP-102"
+   ]
+  },
+  {
+   "id": 5003,
+   "default_code": "PLM-103",
+   "name": "PVC Pipe 2 in x 10 ft \u2014 Plumbing",
+   "list_price": 33.54,
+   "currency": "USD",
+   "pack_qty": 4,
+   "min_qty": 2,
+   "max_qty": 0,
+   "aliases": [
+    "PVC-2IN"
+   ]
+  },
+  {
+   "id": 5004,
+   "default_code": "PLM-104",
+   "name": "PVC Pipe 4 in x 10 ft \u2014 Plumbing",
+   "list_price": 40.31,
+   "currency": "USD",
+   "pack_qty": 1,
+   "min_qty": 1,
+   "max_qty": 0,
+   "aliases": [
+    "PVC-4IN"
+   ]
+  },
+  {
+   "id": 5005,
+   "default_code": "PLM-110",
+   "name": "Brass Compression Coupling 1/2 in \u2014 Plumbing",
+   "list_price": 19.85,
+   "currency": "USD",
+   "pack_qty": 1,
+   "min_qty": 1,
+   "max_qty": 0,
+   "aliases": [
+    "BC-101"
+   ]
+  },
+  {
+   "id": 5006,
+   "default_code": "PLM-111",
+   "name": "Brass Compression Coupling 3/4 in \u2014 Plumbing",
+   "list_price": 11.01,
+   "currency": "USD",
+   "pack_qty": 1,
+   "min_qty": 1,
+   "max_qty": 0,
+   "aliases": [
+    "BC-102"
+   ]
+  },
+  {
+   "id": 5007,
+   "default_code": "PLM-120",
+   "name": "Flexible Braided Hose 1/2 in \u2014 Plumbing",
+   "list_price": 2.65,
+   "currency": "USD",
+   "pack_qty": 4,
+   "min_qty": 2,
+   "max_qty": 0,
+   "aliases": [
+    "FBH-101"
+   ]
+  },
+  {
+   "id": 5008,
+   "default_code": "PLM-121",
+   "name": "Flexible Braided Hose 3/4 in \u2014 Plumbing",
+   "list_price": 29.77,
+   "currency": "USD",
+   "pack_qty": 1,
+   "min_qty": 1,
+   "max_qty": 0,
+   "aliases": [
+    "FBH-102"
+   ]
+  },
+  {
+   "id": 5009,
+   "default_code": "PLM-130",
+   "name": "Water Heater 40 gal Gas \u2014 Plumbing",
+   "list_price": 11.09,
+   "currency": "USD",
+   "pack_qty": 1,
+   "min_qty": 4,
+   "max_qty": 0,
+   "aliases": [
+    "WH-40"
+   ]
+  },
+  {
+   "id": 5010,
+   "default_code": "PLM-131",
+   "name": "Water Heater 50 gal Gas \u2014 Plumbing",
+   "list_price": 36.71,
+   "currency": "USD",
+   "pack_qty": 1,
+   "min_qty": 2,
+   "max_qty": 0,
+   "aliases": [
+    "WH-50"
+   ]
+  },
+  {
+   "id": 5011,
+   "default_code": "PLM-140",
+   "name": "Toilet Supply Valve \u2014 Plumbing",
+   "list_price": 31.87,
+   "currency": "USD",
+   "pack_qty": 6,
+   "min_qty": 4,
+   "max_qty": 0,
+   "aliases": [
+    "TSV"
+   ]
+  },
+  {
+   "id": 5012,
+   "default_code": "PLM-141",
+   "name": "Faucet Cartridge 1/4 turn \u2014 Plumbing",
+   "list_price": 8.26,
+   "currency": "USD",
+   "pack_qty": 6,
+   "min_qty": 1,
+   "max_qty": 0,
+   "aliases": [
+    "FCT"
+   ]
+  },
+  {
+   "id": 5013,
+   "default_code": "ELC-201",
+   "name": "Romex 14/2 NM-B 500 ft \u2014 Electrical",
+   "list_price": 13.85,
+   "currency": "USD",
+   "pack_qty": 1,
+   "min_qty": 1,
+   "max_qty": 0,
+   "aliases": [
+    "ROM-142"
+   ]
+  },
+  {
+   "id": 5014,
+   "default_code": "ELC-202",
+   "name": "Romex 12/2 NM-B 500 ft \u2014 Electrical",
+   "list_price": 102.16,
+   "currency": "USD",
+   "pack_qty": 1,
+   "min_qty": 2,
+   "max_qty": 0,
+   "aliases": [
+    "ROM-122"
+   ]
+  },
+  {
+   "id": 5015,
+   "default_code": "ELC-203",
+   "name": "Romex 10/2 NM-B 500 ft \u2014 Electrical",
+   "list_price": 97.43,
+   "currency": "USD",
+   "pack_qty": 2,
+   "min_qty": 2,
+   "max_qty": 0,
+   "aliases": [
+    "ROM-102"
+   ]
+  },
+  {
+   "id": 5016,
+   "default_code": "ELC-210",
+   "name": "Box Junction 4 in \u2014 Electrical",
+   "list_price": 17.6,
+   "currency": "USD",
+   "pack_qty": 1,
+   "min_qty": 1,
+   "max_qty": 0,
+   "aliases": [
+    "JB-4IN"
+   ]
+  },
+  {
+   "id": 5017,
+   "default_code": "ELC-211",
+   "name": "Box Octagonal 4 in \u2014 Electrical",
+   "list_price": 67.59,
+   "currency": "USD",
+   "pack_qty": 1,
+   "min_qty": 1,
+   "max_qty": 0,
+   "aliases": [
+    "OB-4IN"
+   ]
+  },
+  {
+   "id": 5018,
+   "default_code": "ELC-220",
+   "name": "Breaker 20A Single \u2014 Electrical",
+   "list_price": 70.55,
+   "currency": "USD",
+   "pack_qty": 1,
+   "min_qty": 1,
+   "max_qty": 0,
+   "aliases": [
+    "BRK-20"
+   ]
+  },
+  {
+   "id": 5019,
+   "default_code": "ELC-221",
+   "name": "Breaker 30A Single \u2014 Electrical",
+   "list_price": 80.37,
+   "currency": "USD",
+   "pack_qty": 2,
+   "min_qty": 1,
+   "max_qty": 0,
+   "aliases": [
+    "BRK-30"
+   ]
+  },
+  {
+   "id": 5020,
+   "default_code": "ELC-230",
+   "name": "LED Downlight 6 in 15W \u2014 Electrical",
+   "list_price": 103.07,
+   "currency": "USD",
+   "pack_qty": 1,
+   "min_qty": 1,
+   "max_qty": 0,
+   "aliases": [
+    "LED-615"
+   ]
+  },
+  {
+   "id": 5021,
+   "default_code": "ELC-231",
+   "name": "LED Downlight 4 in 10W \u2014 Electrical",
+   "list_price": 35.52,
+   "currency": "USD",
+   "pack_qty": 1,
+   "min_qty": 2,
+   "max_qty": 0,
+   "aliases": [
+    "LED-410"
+   ]
+  },
+  {
+   "id": 5022,
+   "default_code": "ELC-240",
+   "name": "Panel Board 100A \u2014 Electrical",
+   "list_price": 46.31,
+   "currency": "USD",
+   "pack_qty": 2,
+   "min_qty": 2,
+   "max_qty": 0,
+   "aliases": [
+    "PANEL-100"
+   ]
+  },
+  {
+   "id": 5023,
+   "default_code": "FST-301",
+   "name": "Hex Bolt Grade 5 1/2-13 x 2 in Box 50 \u2014 Fasteners",
+   "list_price": 13.83,
+   "currency": "USD",
+   "pack_qty": 1,
+   "min_qty": 2,
+   "max_qty": 0,
+   "aliases": [
+    "HB-10132"
+   ]
+  },
+  {
+   "id": 5024,
+   "default_code": "FST-302",
+   "name": "Hex Bolt Grade 5 3/8-16 x 1 in Box 100 \u2014 Fasteners",
+   "list_price": 5.0,
+   "currency": "USD",
+   "pack_qty": 1,
+   "min_qty": 10,
+   "max_qty": 0,
+   "aliases": [
+    "HB-30161"
+   ]
+  },
+  {
+   "id": 5025,
+   "default_code": "FST-310",
+   "name": "Lag Screw #10 x 3 in Box 50 \u2014 Fasteners",
+   "list_price": 11.48,
+   "currency": "USD",
+   "pack_qty": 1,
+   "min_qty": 10,
+   "max_qty": 0,
+   "aliases": [
+    "LAG-103"
+   ]
+  },
+  {
+   "id": 5026,
+   "default_code": "FST-311",
+   "name": "Lag Screw #12 x 4 in Box 25 \u2014 Fasteners",
+   "list_price": 10.47,
+   "currency": "USD",
+   "pack_qty": 1,
+   "min_qty": 2,
+   "max_qty": 0,
+   "aliases": [
+    "LAG-124"
+   ]
+  },
+  {
+   "id": 5027,
+   "default_code": "FST-320",
+   "name": "Anchor 1/4 in Bag 100 \u2014 Fasteners",
+   "list_price": 13.63,
+   "currency": "USD",
+   "pack_qty": 1,
+   "min_qty": 2,
+   "max_qty": 0,
+   "aliases": [
+    "ANC-14"
+   ]
+  },
+  {
+   "id": 5028,
+   "default_code": "FST-321",
+   "name": "Anchor 3/8 in Bag 100 \u2014 Fasteners",
+   "list_price": 8.54,
+   "currency": "USD",
+   "pack_qty": 1,
+   "min_qty": 10,
+   "max_qty": 0,
+   "aliases": [
+    "ANC-38"
+   ]
+  },
+  {
+   "id": 5029,
+   "default_code": "SAF-401",
+   "name": "Hard Hat Class E White \u2014 Safety",
+   "list_price": 10.22,
+   "currency": "USD",
+   "pack_qty": 2,
+   "min_qty": 2,
+   "max_qty": 0,
+   "aliases": [
+    "HH-W"
+   ]
+  },
+  {
+   "id": 5030,
+   "default_code": "SAF-402",
+   "name": "Hard Hat Class E Blue \u2014 Safety",
+   "list_price": 4.68,
+   "currency": "USD",
+   "pack_qty": 1,
+   "min_qty": 4,
+   "max_qty": 0,
+   "aliases": [
+    "HH-B"
+   ]
+  },
+  {
+   "id": 5031,
+   "default_code": "SAF-410",
+   "name": "Safety Glasses Clear \u2014 Safety",
+   "list_price": 10.76,
+   "currency": "USD",
+   "pack_qty": 2,
+   "min_qty": 1,
+   "max_qty": 0,
+   "aliases": [
+    "SG-C"
+   ]
+  },
+  {
+   "id": 5032,
+   "default_code": "SAF-411",
+   "name": "Ear Plugs Case 50 pr \u2014 Safety",
+   "list_price": 8.55,
+   "currency": "USD",
+   "pack_qty": 2,
+   "min_qty": 4,
+   "max_qty": 0,
+   "aliases": [
+    "EP-50"
+   ]
+  },
+  {
+   "id": 5033,
+   "default_code": "SAF-420",
+   "name": "Nitrile Gloves L Box 100 \u2014 Safety",
+   "list_price": 6.59,
+   "currency": "USD",
+   "pack_qty": 2,
+   "min_qty": 1,
+   "max_qty": 0,
+   "aliases": [
+    "NG-L"
+   ]
+  },
+  {
+   "id": 5034,
+   "default_code": "SAF-421",
+   "name": "Nitrile Gloves M Box 100 \u2014 Safety",
+   "list_price": 4.47,
+   "currency": "USD",
+   "pack_qty": 2,
+   "min_qty": 4,
+   "max_qty": 0,
+   "aliases": [
+    "NG-M"
+   ]
+  }
+ ]
+}

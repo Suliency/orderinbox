@@ -1,0 +1,50 @@
+# OrderInbox AI — two-minute demo stack
+#
+#   docker compose up            # console + local Qwen model
+#   → http://localhost:8501  (password: orderinbox)
+#
+# The app seeds and processes a realistic demo dataset (PDF/XLSX/CSV orders,
+# a duplicate, a bad price, a non-order) on first boot when ORDERINBOX_DEMO=1.
+#
+# For production, replace the environment block with your real settings
+# (see .env.example) and point OLLAMA_URL at any Ollama host, or set
+# LLM_MODE=cloud with an OpenAI-compatible endpoint.
+services:
+  orderinbox:
+    build: .
+    image: orderinbox-ai:local
+    ports:
+      - "8501:8501"
+    environment:
+      - OLLAMA_URL=http://ollama:11434
+      - OLLAMA_MODEL=qwen2.5:1.5b
+      - ODOO_MODE=mock
+      - WEB_PASSWORD=${WEB_PASSWORD:-orderinbox}
+      - ORDERINBOX_DEMO=${ORDERINBOX_DEMO:-1}
+    depends_on:
+      - ollama
+    volumes:
+      - oi-data:/data
+    restart: unless-stopped
+
+  # Local inference: the private-AI differentiator. Remove this service to run
+  # cloud-only (set LLM_MODE=cloud in the orderinbox service).
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama-data:/root/.ollama
+    restart: unless-stopped
+
+  # One-time: pull the demo model into the ollama service (no-op if present).
+  ollama-pull:
+    image: ollama/ollama:latest
+    depends_on:
+      - ollama
+    entrypoint: ["/bin/sh", "-c", "sleep 5 && ollama pull qwen2.5:1.5b || true"]
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    restart: "no"
+
+volumes:
+  oi-data:
+  ollama-data:

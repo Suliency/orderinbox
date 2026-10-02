@@ -1,0 +1,20 @@
+{% extends "layout.html" %}
+{% block title %}Settings · OrderInbox AI{% endblock %}
+{% block content %}
+  <h1>Settings</h1>
+  <p class="page-sub">Effective configuration for this deployment. Change via environment variables, then restart.</p>
+  <div class="panel">
+    <table class="list" style="border:none;">
+      {% for label, value, note in rows %}
+      <tr>
+        <td style="width:170px;" class="muted">{{ label }}</td>
+        <td>{{ value }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  <div class="panel">
+    <h3>Odoo connection</h3>
+    <button class="small" onclick="fetch('/settings/test-odoo').then(r=>r.json()).then(d=>alert(d.message))">Test connection</button>
+  </div>
+{% endblock %}

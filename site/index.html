@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OrderInbox AI — AI order entry for Odoo</title>
+<meta name="description" content="OrderInbox AI watches your inbox, reads customer purchase orders (PDF, Excel, CSV, email), matches customers and SKUs against your Odoo catalog, validates business rules, and creates draft sales orders for one-click approval. Private, local AI.">
+<style>
+:root{--ink:#101418;--muted:#5b6570;--bg:#fbfbf9;--panel:#fff;--line:#e6e8ea;--brand:#12315e;--brand2:#2c5aa0;--ok:#0e7a5f;--accent:#f4b73f}
+*{box-sizing:border-box;margin:0}
+body{font-family:-apple-system,"Segoe UI",Roboto,Inter,Arial,sans-serif;color:var(--ink);background:var(--bg);line-height:1.6}
+.wrap{max-width:1040px;margin:0 auto;padding:0 24px}
+nav{display:flex;justify-content:space-between;align-items:center;padding:18px 0}
+.logo{font-weight:800;font-size:18px;color:var(--brand)}
+.logo span{color:var(--accent)}
+nav a.cta{background:var(--brand);color:#fff;padding:10px 18px;border-radius:9px;text-decoration:none;font-weight:600;font-size:14px}
+header{padding:64px 0 40px;text-align:center}
+h1{font-size:44px;line-height:1.15;letter-spacing:-.5px;margin-bottom:18px}
+h1 em{font-style:normal;color:var(--brand2)}
+.sub{font-size:19px;color:var(--muted);max-width:680px;margin:0 auto 28px}
+.cta-row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:14px}
+.btn{display:inline-block;padding:13px 26px;border-radius:10px;font-weight:700;text-decoration:none;font-size:15px}
+.btn.p{background:var(--brand);color:#fff}
+.btn.s{background:#fff;border:1.5px solid var(--line);color:var(--ink)}
+.fine{font-size:13px;color:var(--muted)}
+section{padding:44px 0}
+h2{font-size:28px;margin-bottom:8px;letter-spacing:-.3px}
+.lead{color:var(--muted);margin-bottom:24px;max-width:720px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px}
+.card h3{font-size:16px;margin-bottom:6px}
+.card p{font-size:14px;color:var(--muted)}
+.card .ico{font-size:22px;margin-bottom:8px}
+.flow{background:var(--brand);color:#dbe6f5;border-radius:16px;padding:28px;font-size:14px}
+.flow pre{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.7;color:#cfe0f5;overflow:auto}
+table.plans{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+table.plans th,table.plans td{padding:16px 18px;text-align:left;border-bottom:1px solid var(--line);font-size:14.5px}
+table.plans th{background:#f4f6f8;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+table.plans td.price{font-size:22px;font-weight:800}
+table.plans tr:last-child td{border-bottom:none}
+.tag{display:inline-block;background:#eef4ee;color:var(--ok);font-size:12px;font-weight:700;padding:3px 10px;border-radius:99px;margin-left:8px}
+.partner{background:#fff;border:1px solid var(--line);border-radius:16px;padding:28px;display:grid;grid-template-columns:1.2fr 1fr;gap:24px}
+.stat{font-size:34px;font-weight:800;color:var(--brand)}
+footer{border-top:1px solid var(--line);padding:30px 0;margin-top:20px;color:var(--muted);font-size:13.5px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
+@media(max-width:760px){.partner{grid-template-columns:1fr}h1{font-size:32px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <div class="logo">OrderInbox<span> AI</span></div>
+    <a class="cta" href="#pricing">Pricing</a>
+  </nav>
+
+  <header>
+    <h1>Your Odoo orders,<br><em>entered while you sleep.</em></h1>
+    <p class="sub">OrderInbox watches your inbox, reads customer purchase orders in any format — PDF, Excel, CSV, or plain email — matches customers and SKUs against your live Odoo catalog, validates every line against your business rules, and creates <b>draft sales orders</b> your team approves with one click.</p>
+    <div class="cta-row">
+      <a class="btn p" href="#demo">Run the 2-minute demo</a>
+      <a class="btn s" href="#how">How it works</a>
+    </div>
+    <p class="fine">Built for manufacturers &amp; distributors who get 100–3,000 emailed purchase orders a month.</p>
+  </header>
+
+  <section>
+    <h2>The problem is typing, not technology</h2>
+    <p class="lead">Most Odoo shops still run this loop, hundreds of times a month: download the PDF → open Odoo → key 60–70 line items → check pack sizes → create the quote. That is 2–4 hours a day of order-entry staff, and every keying error is a billing problem.</p>
+    <div class="grid">
+      <div class="card"><div class="ico">⏱</div><h3>Hours of manual entry</h3><p>A 70-line PO takes 20–40 minutes to key correctly. A 300-PO month is 1,000+ order-entry hours.</p></div>
+      <div class="card"><div class="ico">🔁</div><h3>Keying errors</h3><p>Wrong SKU, wrong pack, wrong price — caught late, if at all. Each one is an invoice dispute.</p></div>
+      <div class="card"><div class="ico">📥</div><h3>Inbox overload</h3><p>Orders hide in email threads, forwards, and attachments. Nobody checks them at 9pm — until the customer calls.</p></div>
+      <div class="card"><div class="ico">🧾</div><h3>Cash flow lag</h3><p>Every hour between the email arriving and the draft quote being posted is days of invoice lag at 60-day terms.</p></div>
+    </div>
+  </section>
+
+  <section id="how">
+    <h2>How it works</h2>
+    <p class="lead">Deterministic parsing first, local AI for what tables can't give, rules for everything consequential, and a human approval before anything touches Odoo.</p>
+    <div class="flow"><pre>
+Outlook / Gmail ──►  OrderInbox AI  (Docker appliance, your network)
+                        │
+          ┌─────────────┼─────────────┐
+          ▼             ▼             ▼
+        PDF          Excel/CSV     Email body
+          └─────────────┼─────────────┘
+                        ▼
+              document parser
+        (tables first, local LLM for the rest)
+                        ▼
+                structured order
+              ┌─────────┴─────────┐
+              ▼                   ▼
+         customer match      SKU match      ← your live Odoo catalog
+              └─────────┬─────────┘
+                        ▼
+                 business rules
+   pack size · min/max qty · price deviation
+   currency · duplicate PO · confidence
+                        │
+                ┌───────┴───────┐
+                ▼               ▼
+             READY          EXCEPTION
+                │               │
+          draft order      review queue
+                ▼
+               ODOO   (sale.order, state: draft)
+</pre></div>
+    <div class="grid" style="margin-top:24px">
+      <div class="card"><div class="ico">📄</div><h3>Any format</h3><p>Formal PDF POs, spreadsheets, CSV exports, and orders typed directly in the email body. Scanned PDFs get OCR.</p></div>
+      <div class="card"><div class="ico">🏭</div><h3>Your catalog, not ours</h3><p>Matching runs against the products and partners in your Odoo instance. No second SKU database to maintain.</p></div>
+      <div class="card"><div class="ico">🛡</div><h3>Drafts, not decisions</h3><p>The AI never confirms a transaction. A person clicks Approve; a draft order appears in Odoo for normal review and posting.</p></div>
+      <div class="card"><div class="ico">🔒</div><h3>Private AI</h3><p>Inference runs on a local model in the same container as your data. Pricing, customers, and catalogs stay on your infrastructure.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>What the rules engine catches</h2>
+    <p class="lead">Before anything reaches Odoo, every line is checked against deterministic rules with a suggested fix — so the exception queue is actionable, not a pile of "AI is unsure".</p>
+    <div class="grid">
+      <div class="card"><h3>Pack sizes &amp; multiples</h3><p>Qty 5 on a case-of-4 product gets flagged with the next valid multiple.</p></div>
+      <div class="card"><h3>Min / max order quantities</h3><p>Per-product bounds from your catalog.</p></div>
+      <div class="card"><h3>Price deviation</h3><p>Unit price vs. catalog price beyond your tolerance — flagged, never silently accepted.</p></div>
+      <div class="card"><h3>Duplicate POs</h3><p>Same customer + PO number already processed? It lands in the exception queue.</p></div>
+      <div class="card"><h3>Weak matches</h3><p>Every customer and SKU match carries a score. Low scores get a human, not a guess.</p></div>
+      <div class="card"><h3>Currency &amp; completeness</h3><p>Allowed currencies, missing quantities, low-confidence extraction — all surfaced.</p></div>
+    </div>
+  </section>
+
+  <section id="pricing">
+    <h2>Pricing</h2>
+    <p class="lead">Priced on order volume, not seats. Onboarding covers customer/SKU mapping and your business rules — one time.</p>
+    <table class="plans">
+      <tr><th>Plan</th><th>Orders / month</th><th>Price</th><th>Includes</th></tr>
+      <tr><td><b>Starter</b></td><td>100</td><td class="price">$199/mo</td><td>Inbox monitoring, draft orders, exception queue, local AI</td></tr>
+      <tr><td><b>Business</b></td><td>500</td><td class="price">$399/mo</td><td>Everything in Starter, priority support, custom rules</td></tr>
+      <tr><td><b>Pro</b></td><td>2,000</td><td class="price">$799/mo</td><td>Everything in Business, SLA, multi-inbox, SSO</td></tr>
+      <tr><td><b>Enterprise</b></td><td>Custom</td><td class="price">$1,500+/mo</td><td>On-prem appliance, your GPU, private model, white-glove</td></tr>
+    </table>
+    <p class="fine" style="margin-top:10px">Onboarding: $1,000–$3,000 one-time, depending on catalog size and rule complexity.</p>
+  </section>
+
+  <section id="demo">
+    <h2>See it in two minutes</h2>
+    <p class="lead">The demo runs the whole pipeline — PDF, Excel, CSV, an inline email order, a duplicate PO, a bad price, and a non-order — against a sample catalog, with match scores and validation results for each one.</p>
+    <div class="flow"><pre>
+docker compose up
+# → http://localhost:8501   (password: orderinbox)
+# first boot seeds + processes 7 realistic orders</pre></div>
+    <p class="fine" style="margin-top:12px">No account, no email, no credit card. Source: <a href="#">GitHub</a>.</p>
+  </section>
+
+  <section>
+    <div class="partner">
+      <div>
+        <h2>For Odoo partners</h2>
+        <p class="lead" style="margin-bottom:14px">Do any of your manufacturing or distribution clients still manually key emailed purchase orders into Odoo? You already own the relationship. We bring the product — <b>you earn 20–30% recurring commission</b> on every client you introduce, for as long as they stay.</p>
+        <a class="btn p" href="#">Partner program details</a>
+      </div>
+      <div style="align-self:center">
+        <div class="stat">20–30%</div>
+        <p class="lead" style="margin:6px 0 18px">recurring partner commission, every month, on every referred client</p>
+        <div class="stat">$399 → $88–119/mo</div>
+        <p class="lead" style="margin:6px 0 0">per referred Business-plan client</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>© 2026 OrderInbox AI · Built for Odoo</span>
+    <span>Private local inference · Draft-first approval · Deterministic validation</span>
+  </footer>
+</div>
+</body>
+</html>

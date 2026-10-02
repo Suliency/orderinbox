@@ -1,0 +1,32 @@
+{% extends "layout.html" %}
+{% block title %}Inbox · OrderInbox AI{% endblock %}
+{% block content %}
+  <h1>Inbox</h1>
+  <p class="page-sub">
+    Provider: <b>{{ settings.mail_provider }}</b>
+    {% if settings.mail_provider != 'none' %}
+      · {{ settings.imap_host }}:{{ settings.imap_port }} · folder {{ settings.imap_folder }}
+      · lookback {{ settings.inbox_lookback_days }} days
+    {% endif %}
+    {% if processed is defined %}<span class="chip">just processed {{ processed }}</span>{% endif %}
+  </p>
+  <form method="post" action="/inbox/poll" class="actions" style="margin-top:0;">
+    <button class="primary" type="submit">Poll inbox now</button>
+    <span class="muted" style="font-size:12.5px;">In production this runs automatically every {{ settings.inbox_poll_seconds }}s.</span>
+  </form>
+
+  <h2>Latest messages</h2>
+  <table class="list">
+    <tr><th>Received</th><th>Subject</th><th>From</th><th>Status</th></tr>
+    {% for o in orders %}
+    <tr class="clickable" onclick="location='/orders/{{ o.id }}'">
+      <td>{{ o.received_at | dt if o.received_at else '—' }}</td>
+      <td><a href="/orders/{{ o.id }}">{{ o.subject or '—' }}</a></td>
+      <td>{{ o.sender or '—' }}</td>
+      <td><span class="badge b-{{ o.status.value }}">{{ o.status.value }}</span></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4" class="muted">No messages yet.</td></tr>
+    {% endfor %}
+  </table>
+{% endblock %}

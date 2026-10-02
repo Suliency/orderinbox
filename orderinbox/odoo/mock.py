@@ -15,7 +15,7 @@ from . import OrderLinePayload, PartnerRecord, ProductRecord
 
 log = logging.getLogger("orderinbox.odoo.mock")
 
-BUILTIN_SEED = Path(__file__).resolve().parents[2] / "demo" / "seed.json"
+BUILTIN_SEED = Path(__file__).resolve().parents[1] / "demo" / "seed.json"
 
 
 class MockOdooBackend:

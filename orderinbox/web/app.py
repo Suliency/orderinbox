@@ -56,8 +56,8 @@ def create_app(settings: Settings, ctx: AppContext) -> FastAPI:
     # ------------------------------------------------------------------
     @app.get("/login", response_class=HTMLResponse)
     def login(request: Request, next: str = "/", password: str = "", error: str = ""):
-        return templates.TemplateResponse("login.html", {
-            "request": request, "next": next, "error": error,
+        return templates.TemplateResponse(request, "login.html", {
+            "next": next, "error": error,
             "submitted": bool(password),
         })
 
@@ -69,8 +69,8 @@ def create_app(settings: Settings, ctx: AppContext) -> FastAPI:
             resp = RedirectResponse(next or "/", status_code=303)
             resp.set_cookie("oi_token", token, max_age=60 * 60 * 24 * 7, httponly=True, samesite="lax")
             return resp
-        return templates.TemplateResponse("login.html", {
-            "request": request, "next": next, "error": "Wrong password.", "submitted": True,
+        return templates.TemplateResponse(request, "login.html", {
+            "next": next, "error": "Wrong password.", "submitted": True,
         }, status_code=401)
 
     @app.get("/logout")
@@ -91,8 +91,8 @@ def create_app(settings: Settings, ctx: AppContext) -> FastAPI:
         exceptions = counts.get("exception", 0)
         sent = counts.get("sent", 0)
         lines_total = sum(len(o.extraction.lines) if o.extraction else 0 for o in orders)
-        return templates.TemplateResponse("dashboard.html", {
-            "request": request, "counts": counts, "orders": orders,
+        return templates.TemplateResponse(request, "dashboard.html", {
+            "counts": counts, "orders": orders,
             "ready": ready, "exceptions": exceptions, "sent": sent,
             "backend": ctx.pipeline.backend.name,
         })
@@ -103,12 +103,12 @@ def create_app(settings: Settings, ctx: AppContext) -> FastAPI:
         if order_id is not None:
             order = ctx.store.get_order(order_id)
             if order is None:
-                return templates.TemplateResponse("404.html", {"request": request}, status_code=404)
-            return templates.TemplateResponse("order_detail.html", {"request": request, "o": order, "backend": ctx.pipeline.backend.name})
+                return templates.TemplateResponse(request, "404.html", {}, status_code=404)
+            return templates.TemplateResponse(request, "order_detail.html", {"o": order, "backend": ctx.pipeline.backend.name})
         status = status if status in ("ready", "exception", "sent", "rejected", "failed", "received", "approved") else ""
         orders = ctx.store.list_orders(status=status or None, limit=300)
-        return templates.TemplateResponse("orders.html", {
-            "request": request, "orders": orders, "status": status,
+        return templates.TemplateResponse(request, "orders.html", {
+            "orders": orders, "status": status,
             "counts": ctx.store.counts_by_status(),
         })
 
@@ -145,8 +145,8 @@ def create_app(settings: Settings, ctx: AppContext) -> FastAPI:
     # ------------------------------------------------------------------
     @app.get("/inbox", response_class=HTMLResponse)
     def inbox(request: Request):
-        return templates.TemplateResponse("inbox.html", {
-            "request": request, "settings": settings,
+        return templates.TemplateResponse(request, "inbox.html", {
+            "settings": settings,
             "orders": ctx.store.list_orders(limit=20),
         })
 
@@ -170,7 +170,7 @@ def create_app(settings: Settings, ctx: AppContext) -> FastAPI:
             ("Currencies", ", ".join(s.currencies()), ""),
             ("Version", f"OrderInbox AI {__import__('orderinbox').__version__}", ""),
         ]
-        return templates.TemplateResponse("settings.html", {"request": request, "rows": rows})
+        return templates.TemplateResponse(request, "settings.html", {"rows": rows})
 
     @app.get("/settings/test-odoo")
     def test_odoo(request: Request):

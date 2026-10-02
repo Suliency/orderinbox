@@ -24,7 +24,7 @@ from typing import Optional
 
 from ..config import Settings
 
-SEED = Path(__file__).resolve().parents[2] / "demo" / "seed.json"
+SEED = Path(__file__).resolve().parent / "seed.json"
 random.seed(7)
 
 

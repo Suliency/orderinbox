@@ -13,7 +13,6 @@ WORKDIR /app
 
 COPY pyproject.toml README.md LICENSE ./
 COPY orderinbox ./orderinbox
-COPY demo ./demo
 RUN pip install --no-cache-dir .[dev]
 
 # tesseract + poppler make scanned-PDF OCR and robust PDF text extraction work

@@ -32,6 +32,9 @@ and route the relationship (partner or direct).**
 > # → http://localhost:8501  (password: orderinbox)
 > ```
 >
+> The one-page overview, with pricing, is at
+> https://suliency.github.io/orderinbox/
+>
 > You'd earn **20–30% recurring** on every client you introduce. Want 20
 > minutes this week?
 >

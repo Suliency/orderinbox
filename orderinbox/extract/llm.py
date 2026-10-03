@@ -162,3 +162,14 @@ ORDER_EXTRACTION_PROMPT = (
     "- Include a line for every purchasable item; skip header/total rows.\n\n"
     "DOCUMENT:\n"
 )
+
+# Used when the deterministic parser already found the lines: asking only for
+# the header keeps the output ~70-110 tokens instead of hundreds-thousands,
+# which is what dominates latency on CPU.
+HEADER_SCHEMA_HINT = SCHEMA_HINT.split('  "lines"')[0].rstrip().rstrip(",") + "\n}"
+
+HEADER_EXTRACTION_PROMPT = (
+    "Extract the order header from the document below. Do NOT list the line items.\n\n"
+    f"Return ONLY the JSON object matching this schema:\n{HEADER_SCHEMA_HINT}\n\n"
+    "DOCUMENT:\n"
+)

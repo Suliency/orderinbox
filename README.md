@@ -78,6 +78,13 @@ On a CPU-only machine the local model is slow (from tens of seconds to a few
 minutes per order), so the demo orders appear in the console one by one as
 they finish processing.
 
+Have an NVIDIA GPU (4 GB+ VRAM)? Use it — the demo's model calls drop from
+tens of seconds each to under a second:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.gpu.yml up
+```
+
 No Docker?
 
 ```bash

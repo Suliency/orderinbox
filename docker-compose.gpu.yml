@@ -1,0 +1,20 @@
+# Optional NVIDIA GPU acceleration for the local model.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up
+#
+# Needs an NVIDIA driver + nvidia-container-toolkit on the host. Any card with
+# 4 GB+ VRAM runs the default qwen2.5:1.5b (~1.5 GB). One model, one request
+# at a time keeps VRAM use bounded so a desktop GPU stays responsive; the
+# model unloads after 5 idle minutes (Ollama default).
+services:
+  ollama:
+    environment:
+      - OLLAMA_MAX_LOADED_MODELS=1
+      - OLLAMA_NUM_PARALLEL=1
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

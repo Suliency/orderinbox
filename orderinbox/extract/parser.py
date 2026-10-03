@@ -16,7 +16,7 @@ from typing import Optional
 from ..config import Settings
 from ..models import Extraction, MatchMethod, OrderLine
 from .documents import DocumentContent, order_like_text
-from .llm import LLMClient, ORDER_EXTRACTION_PROMPT
+from .llm import HEADER_EXTRACTION_PROMPT, LLMClient, ORDER_EXTRACTION_PROMPT
 
 log = logging.getLogger("orderinbox.parser")
 
@@ -369,11 +369,13 @@ def extract_order(docs: list[DocumentContent], llm: Optional[LLMClient],
     else:
         extraction = None
 
-    # 3) LLM pass: header entities + (fallback) lines
+    # 3) LLM pass: header entities only when the parser found the lines,
+    #    header + lines otherwise
     if llm is not None and llm.available():
         try:
+            prompt = HEADER_EXTRACTION_PROMPT if det_lines else ORDER_EXTRACTION_PROMPT
             data = llm.extract_json("You are an order-entry data extractor.",
-                                    ORDER_EXTRACTION_PROMPT + combined_text[:60000])
+                                    prompt + combined_text[:60000])
             if data.get("is_order") is False and not det_lines:
                 return None
             llm_ex = _llm_to_extraction(data)
@@ -388,13 +390,6 @@ def extract_order(docs: list[DocumentContent], llm: Optional[LLMClient],
                 extraction.payment_terms = llm_ex.payment_terms or extraction.payment_terms
                 extraction.ship_to = llm_ex.ship_to or extraction.ship_to
                 extraction.notes = llm_ex.notes or extraction.notes
-                # cross-check: if LLM found lines and deterministic count differs a lot,
-                # prefer the larger set
-                if len(llm_ex.lines) > len(extraction.lines) * 1.5:
-                    log.warning("deterministic found %d lines, LLM found %d — using LLM lines",
-                                len(extraction.lines), len(llm_ex.lines))
-                    extraction.lines = llm_ex.lines
-                    extraction.extract_method = "llm"
                 extraction.extract_method = "hybrid"
         except Exception as exc:
             log.warning("LLM extraction failed (%s) — using deterministic result", exc)

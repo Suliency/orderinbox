@@ -58,6 +58,29 @@ they would have done anyway.
 | Customer GPU/server | subscription + their hardware | strongest "private AI" story |
 | Hybrid (local + cloud fallback) | subscription | for shops wanting cloud fallback without a GPU |
 
+## RateScout (freight) tier
+
+The freight-forwarding product (see
+[RateScout_Strata_Local_AI_Integration.md](RateScout_Strata_Local_AI_Integration.md))
+is a different buyer — a forwarder's ops/desk team — and prices on a different
+anchor: the cost of rate work, not order entry. The appliance ships the full
+workflow: customer RFQ intake, agent-quote normalization against the freight
+ontology, lane-aware comparison, deterministic margin policy, and the
+approve-to-send approval step. The private tier bundles what the proposal
+calls the defensible product on top: local inference, counterparty alias
+learning, and private document processing.
+
+| Plan | Positioning | Price |
+|---|---|---:|
+| RateScout Cloud | hosted, shared local inference, cloud fallback | **$399–999/mo** |
+| RateScout Private AI | customer-hosted, two local models (main + independent verifier), no cloud | **$2,000–5,000+/mo** + implementation |
+
+Private-tier features (from the proposal): customer-hosted inference, local
+model behind the gateway, private document processing, local TMS + Microsoft 365
+connectivity, local audit log, optional cloud fallback disabled. The premium
+reflects the dual-model deployment (a main model + an independent verifier) and
+the integration work — not just the software license.
+
 ## Launch pricing strategy
 
 - **First 3 paid implementations: 50% off year 1** (in exchange for a

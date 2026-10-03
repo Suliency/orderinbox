@@ -29,6 +29,31 @@ CREATE TABLE IF NOT EXISTS orders (
     log TEXT,
     issues TEXT
 );
+CREATE TABLE IF NOT EXISTS freight (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    uid TEXT UNIQUE NOT NULL,
+    kind TEXT NOT NULL DEFAULT 'rfq',
+    status TEXT NOT NULL DEFAULT 'received',
+    subject TEXT,
+    sender TEXT,
+    received_at TEXT,
+    stored_path TEXT,
+    processed_at TEXT,
+    rfq_uid TEXT,
+    counterparty TEXT,
+    lane TEXT,
+    equipment TEXT,
+    container_count INTEGER,
+    buy_cost REAL,
+    quote_currency TEXT,
+    sell_total REAL,
+    margin_pct REAL,
+    recommendation TEXT,
+    error TEXT,
+    payload TEXT,
+    issues TEXT,
+    log TEXT
+);
 CREATE TABLE IF NOT EXISTS meta (
     key TEXT PRIMARY KEY,
     value TEXT
@@ -125,6 +150,90 @@ class Store:
     def get_meta(self, key: str) -> Optional[str]:
         row = self.conn.execute("SELECT value FROM meta WHERE key=?", (key,)).fetchone()
         return row["value"] if row else None
+
+    # ------------------------------------------------------------------
+    # freight (RateScout) cases
+    def upsert_freight(self, case) -> int:
+        from .freight.models import FreightCase
+        payload = json.dumps(case.model_dump(exclude={"id"}), default=str)
+        log_json = json.dumps(case.log, ensure_ascii=False)
+        issues_json = json.dumps([i.model_dump() for i in case.issues], ensure_ascii=False)
+        cur = self.conn.execute(
+            """INSERT INTO freight (uid, kind, status, subject, sender, received_at, stored_path,
+                                    processed_at, rfq_uid, counterparty, lane, equipment,
+                                    container_count, buy_cost, quote_currency, sell_total,
+                                    margin_pct, recommendation, error, payload, issues, log)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+               ON CONFLICT(uid) DO UPDATE SET
+                 status=excluded.status, rfq_uid=excluded.rfq_uid,
+                 counterparty=excluded.counterparty, lane=excluded.lane,
+                 equipment=excluded.equipment, container_count=excluded.container_count,
+                 buy_cost=excluded.buy_cost, quote_currency=excluded.quote_currency,
+                 sell_total=excluded.sell_total, margin_pct=excluded.margin_pct,
+                 recommendation=excluded.recommendation, error=excluded.error,
+                 processed_at=excluded.processed_at, payload=excluded.payload,
+                 issues=excluded.issues, log=excluded.log
+            """,
+            (
+                case.uid, case.kind, case.status.value, case.subject, case.sender,
+                case.received_at.isoformat() if case.received_at else None,
+                case.stored_path,
+                case.processed_at.isoformat() if case.processed_at else None,
+                case.rfq_uid, case.counterparty, case.lane, case.equipment,
+                case.container_count or None, case.buy_cost or None,
+                case.quote_currency or None, case.sell_total,
+                case.margin_pct, case.recommendation or None, case.error or None,
+                payload, issues_json, log_json,
+            ),
+        )
+        self.conn.commit()
+        if case.id is None:
+            row = self.conn.execute("SELECT id FROM freight WHERE uid=?", (case.uid,)).fetchone()
+            case.id = row["id"] if row else cur.lastrowid
+        return case.id
+
+    def get_freight(self, case_id: int):
+        from .freight.models import FreightCase
+        row = self.conn.execute("SELECT * FROM freight WHERE id=?", (case_id,)).fetchone()
+        return self._row_to_freight(row) if row else None
+
+    def list_freight(self, status: Optional[str] = None, kind: Optional[str] = None,
+                     limit: int = 500) -> list:
+        from .freight.models import FreightCase
+        clauses, params = [], []
+        if status:
+            clauses.append("status=?")
+            params.append(status)
+        if kind:
+            clauses.append("kind=?")
+            params.append(kind)
+        where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
+        rows = self.conn.execute(
+            f"SELECT * FROM freight{where} ORDER BY received_at DESC, id DESC LIMIT ?",
+            (*params, limit)).fetchall()
+        return [self._row_to_freight(r) for r in rows]
+
+    def freight_counts(self) -> dict[str, int]:
+        rows = self.conn.execute(
+            "SELECT status, COUNT(*) c FROM freight GROUP BY status").fetchall()
+        return {r["status"]: r["c"] for r in rows}
+
+    def open_rfqs(self) -> list:
+        from .freight.models import OPEN_RFK_STATUSES
+        out = []
+        for s in OPEN_RFK_STATUSES:
+            out.extend(self.list_freight(status=s.value, kind="rfq", limit=200))
+        return out
+
+    @staticmethod
+    def _row_to_freight(row) -> "object":
+        from .freight.models import FreightCase
+        try:
+            case = FreightCase.model_validate(json.loads(row["payload"] or "{}"))
+        except Exception:
+            case = FreightCase(uid=row["uid"], kind=row["kind"])
+        case.id = row["id"]
+        return case
 
     # ------------------------------------------------------------------
     @staticmethod

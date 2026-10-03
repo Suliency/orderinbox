@@ -33,7 +33,34 @@ def _ctx() -> AppContext:
     return AppContext()
 
 
-def _print_order(order) -> None:
+def _print_order(item) -> None:
+    from .freight.models import FreightCase
+    if isinstance(item, FreightCase):
+        tag = item.kind.upper()
+        lane = f" {item.lane}" if item.lane else ""
+        typer.secho(f"[{item.status.value.upper():9}] ({tag:5}) {item.subject or item.stored_path}{lane}",
+                    fg=typer.colors.CYAN)
+        meta = []
+        if item.equipment:
+            meta.append(f"{item.equipment} x{item.container_count or 1}" if item.container_count else item.equipment)
+        if item.counterparty:
+            meta.append(f"from {item.counterparty}")
+        if item.buy_cost:
+            meta.append(f"cost {item.buy_cost:.0f} {item.quote_currency or ''}".rstrip())
+        if item.sell_total is not None:
+            m = f" margin {item.margin_pct:.1f}%" if item.margin_pct is not None else ""
+            meta.append(f"sell {item.sell_total:.0f} {item.quote_currency or ''}{m}")
+        if meta:
+            typer.echo(f"    {'   '.join(meta)}")
+        if item.recommendation:
+            typer.echo(f"    rec: {item.recommendation}")
+        for i in item.issues:
+            prefix = "ERR " if i.severity.value == "error" else "warn"
+            typer.echo(f"    {prefix} {i.code}: {i.message}")
+        if item.error:
+            typer.echo(f"    note: {item.error}")
+        return
+    order = item
     e = order.extraction
     typer.secho(f"[{order.status.value.upper():9}] {order.subject or order.stored_path}", fg=typer.colors.CYAN)
     if e:
@@ -86,14 +113,14 @@ def process(path: Path) -> None:
 
 @app.command()
 def demo(serve: bool = typer.Option(True, "--serve/--no-serve", help="start the web console after seeding")) -> None:
-    """Seed realistic sample orders (PDF/XLSX/CSV emails) and run the pipeline.
+    """Seed a realistic dataset (freight RFQ + agent quotes, order emails) and run the pipeline.
 
     This is the sales demo: two minutes from `docker compose up` to a screen
-    full of matched, validated draft orders.
+    full of quoted lanes, matched orders, and one-click approvals.
     """
     ctx = _ctx()
     from .demo.seed import build_demo
-    typer.echo("Building demo dataset (PDF, XLSX, CSV emails with attachments)…")
+    typer.echo("Building demo dataset (freight RFQ + quotes, PDF/XLSX/CSV order emails)…")
     created = build_demo(settings=ctx.settings)
     for p in created:
         typer.echo(f"  · {p.name}")

@@ -1,0 +1,98 @@
+# RateScout / OrderInbox — Private (on-prem) deployment with local models
+#
+# This is "Mode B — Private Deployment" (proposal Section 14): everything runs
+# in the customer's infrastructure. Two local model servers stand in for the
+# dual DGX Spark layout (Section 15):
+#
+#   model-main     the main local LLM (complex reasoning, document
+#                  interpretation)  -> exposed as the "Strata" local AI API
+#   model-verifier the second, independent model (producer/verifier check,
+#                  Section 11) and a home for vision/embedding workloads
+#
+# The app is local-first: it talks to model-main for the volume, uses
+# model-verifier as the independent second pass for the VERIFY confidence band,
+# and only escalates to a cloud provider (if configured) for genuinely
+# ambiguous work. No commercial data needs to leave this network.
+#
+#   docker compose -f docker-compose.strata.yml up
+#
+# Adjust the two model names to what is available on your hardware. Any
+# OpenAI-compatible server works in either slot (vLLM, SGLang, TGI, llama.cpp,
+# the Strata runtime, ...).
+services:
+  orderinbox:
+    build: .
+    image: ratescout-ai:local
+    ports:
+      - "8501:8501"
+    environment:
+      # local-first: main model on spark 1, verifier on spark 2
+      - STRATA_URL=http://model-main:8000/v1
+      - STRATA_MODEL=main-model
+      - VLLM_URL=http://model-verifier:8000/v1
+      - VLLM_MODEL=verifier-model
+      # cloud is optional; leave unset for a fully private deployment
+      # (set LLM_MODE=auto so the local servers are used first)
+      - LLM_MODE=auto
+      - OLLAMA_URL=http://model-main:8000   # not required; local servers above
+      - ODOO_MODE=${ODOO_MODE:-mock}
+      - WEB_PASSWORD=${WEB_PASSWORD:-ratescout}
+      - ORDERINBOX_API_TOKEN=${ORDERINBOX_API_TOKEN:-private-bridge-token}
+    depends_on:
+      model-main:
+        condition: service_started
+      model-verifier:
+        condition: service_started
+    volumes:
+      - rs-data:/data
+    restart: unless-stopped
+
+  # Main local model — the reasoning / document-interpretation engine.
+  # Serves an OpenAI-compatible API. Point this at a DGX Spark with a strong
+  # 14B-70B model (Section 15: DGX Spark #1).
+  model-main:
+    image: ghcr.io/vllm/vllm-openai:latest
+    command:
+      - --model
+      - Qwen/Qwen2.5-72B-Instruct   # <-- the main model
+      - --served-model-name
+      - main-model
+      - --port
+      - "8000"
+    volumes:
+      - model-cache:/root/.cache/huggingface
+    # DGX Spark / NVIDIA host: reserve the GPU.
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  # Second local model — the independent producer/verifier pass (Section 11)
+  # and the home for vision / embedding / reranker workloads (DGX Spark #2).
+  model-verifier:
+    image: ghcr.io/vllm/vllm-openai:latest
+    command:
+      - --model
+      - Qwen/Qwen2.5-32B-Instruct    # <-- the verifier model
+      - --served-model-name
+      - verifier-model
+      - --port
+      - "8000"
+    volumes:
+      - model-cache:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+
+volumes:
+  rs-data:
+  model-cache:

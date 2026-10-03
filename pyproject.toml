@@ -4,13 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "orderinbox"
-version = "0.2.0"
-description = "OrderInbox AI — unattended AI order entry for Odoo. Watches the inbox, extracts orders from email/PDF/Excel, matches customers and SKUs, validates business rules, and creates draft sales orders in Odoo."
+version = "0.4.0"
+description = "OrderInbox / RateScout AI — unattended AI order entry and freight for Odoo. Watches the inbox, extracts orders/quotes from email/PDF/Excel, matches customers and SKUs, runs a local-first model gateway (Strata/vLLM/Ollama + cloud escalation), validates business rules, and creates draft sales orders in Odoo."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "OrderInbox AI" }]
-keywords = ["odoo", "erp", "order-entry", "automation", "llm", "invoice", "purchase-order", "ocr"]
+keywords = ["odoo", "erp", "order-entry", "freight", "automation", "llm", "local-llm",
+           "model-gateway", "invoice", "purchase-order", "ocr", "mcp"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Web Environment",

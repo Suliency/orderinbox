@@ -1,4 +1,4 @@
-# OrderInbox AI — two-minute demo stack
+# OrderInbox / RateScout AI — two-minute demo stack
 #
 #   docker compose up            # console + local Qwen model
 #   → http://localhost:8501  (password: orderinbox)
@@ -9,6 +9,14 @@
 # For production, replace the environment block with your real settings
 # (see .env.example) and point OLLAMA_URL at any Ollama host, or set
 # LLM_MODE=cloud with an OpenAI-compatible endpoint.
+#
+# Deployment modes (proposal Section 14):
+#   A — hosted:            we run this stack on our GPUs for you
+#   B — private:           `docker compose -f docker-compose.strata.yml up`
+#                          — two local model servers (main + verifier), no
+#                          cloud, all data stays on the customer's hardware
+#   C — hybrid (default):  local model first, optional cloud fallback for the
+#                          genuinely ambiguous tail (LLM_MODE=auto)
 services:
   orderinbox:
     build: .

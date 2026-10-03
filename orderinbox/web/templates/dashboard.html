@@ -5,13 +5,36 @@
   <p class="page-sub">Unattended inbox processing for Odoo. Drafts are created only after a human approves them.</p>
 
   <div class="cards">
-    <div class="card ok"><div class="n">{{ ready }}</div><div class="l">Ready for approval</div></div>
-    <div class="card err"><div class="n">{{ exceptions }}</div><div class="l">Need review (exceptions)</div></div>
+    <div class="card ok"><div class="n">{{ ready }}</div><div class="l">Orders ready for approval</div></div>
+    <div class="card err"><div class="n">{{ exceptions }}</div><div class="l">Order exceptions</div></div>
     <div class="card"><div class="n">{{ sent }}</div><div class="l">Drafts created in Odoo</div></div>
-    <div class="card"><div class="n">{{ counts.get('rejected', 0) }}</div><div class="l">Skipped / rejected</div></div>
+    <div class="card"><div class="n">{{ freight_counts.get('ready', 0) }}</div><div class="l">Freight ready (RFQs + quotes)</div></div>
+    <div class="card err"><div class="n">{{ freight_counts.get('exception', 0) }}</div><div class="l">Freight exceptions</div></div>
   </div>
 
-  <h2>Recent activity</h2>
+  <h2>Freight — RFQs &amp; quotes</h2>
+  {% if freight %}
+  <table class="list">
+    <tr><th>Received</th><th>Type</th><th>Subject</th><th>Lane</th><th>Counterparty</th><th class="num">Buy</th><th class="num">Margin</th><th>Status</th></tr>
+    {% for c in freight %}
+    <tr class="clickable" onclick="location='/freight/{{ c.id }}'">
+      <td>{{ c.received_at | dt if c.received_at else '—' }}</td>
+      <td><span class="chip">{{ c.kind }}</span></td>
+      <td><a href="/freight/{{ c.id }}">{{ c.subject or c.stored_path.split('/')[-1] }}</a></td>
+      <td>{{ c.lane or '—' }}</td>
+      <td>{{ c.counterparty or '—' }}</td>
+      <td class="num">{% if c.buy_cost %}{{ '%.0f' % c.buy_cost }} {{ c.quote_currency }}{% else %}—{% endif %}</td>
+      <td class="num">{{ c.margin_pct | pct if c.margin_pct is not none else '—' }}</td>
+      <td><span class="badge b-{{ c.status.value }}">{{ c.status.value }}</span></td>
+    </tr>
+    {% endfor %}
+  </table>
+  <p class="page-sub"><a href="/freight">All freight →</a></p>
+  {% else %}
+  <div class="panel">No freight items yet. Customer RFQs and agent quotes from the inbox appear here.</div>
+  {% endif %}
+
+  <h2>Recent orders</h2>
   {% if orders %}
   <table class="list">
     <tr><th>Received</th><th>Subject</th><th>Customer</th><th>PO</th><th class="num">Lines</th><th class="num">Total</th><th>Status</th></tr>

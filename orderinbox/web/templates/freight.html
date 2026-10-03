@@ -1,0 +1,39 @@
+{% extends "layout.html" %}
+{% block title %}Freight · OrderInbox AI{% endblock %}
+{% block content %}
+  <h1>Freight</h1>
+  <p class="page-sub">Customer RFQs and agent quotes. The system normalizes, compares and prices; you approve the consequential step.</p>
+
+  <div class="filters">
+    <a href="/freight" class="{{ 'active' if kind == '' else '' }}">All ({{ total }})</a>
+    <a href="/freight?kind=rfq" class="{{ 'active' if kind == 'rfq' else '' }}">RFQs ({{ rfq_count }})</a>
+    <a href="/freight?kind=quote" class="{{ 'active' if kind == 'quote' else '' }}">Quotes ({{ quote_count }})</a>
+    <span class="sep"></span>
+    <a href="/freight?status=ready" class="{{ 'active' if status == 'ready' else '' }}">Ready ({{ counts.get('ready', 0) }})</a>
+    <a href="/freight?status=exception" class="{{ 'active' if status == 'exception' else '' }}">Exceptions ({{ counts.get('exception', 0) }})</a>
+    <a href="/freight?status=sent" class="{{ 'active' if status == 'sent' else '' }}">Sent ({{ counts.get('sent', 0) }})</a>
+    <a href="/freight?status=rejected" class="{{ 'active' if status == 'rejected' else '' }}">Rejected ({{ counts.get('rejected', 0) }})</a>
+  </div>
+
+  {% if cases %}
+  <table class="list">
+    <tr><th>Received</th><th>Type</th><th>Subject</th><th>Lane</th><th>Equipment</th><th>Counterparty</th><th class="num">Buy</th><th class="num">Sell</th><th class="num">Margin</th><th>Status</th></tr>
+    {% for c in cases %}
+    <tr class="clickable" onclick="location='/freight/{{ c.id }}'">
+      <td>{{ c.received_at | dt if c.received_at else '—' }}</td>
+      <td><span class="badge b-{{ 'pending' if c.kind == 'rfq' else 'sent' }}">{{ c.kind }}</span></td>
+      <td><a href="/freight/{{ c.id }}">{{ c.subject or c.stored_path.split('/')[-1] }}</a></td>
+      <td>{{ c.lane or '—' }}</td>
+      <td>{{ c.equipment or '—' }}{% if c.container_count %} x{{ c.container_count }}{% endif %}</td>
+      <td>{{ c.counterparty or '—' }}</td>
+      <td class="num">{% if c.buy_cost %}{{ '%.0f' % c.buy_cost }} {{ c.quote_currency }}{% else %}—{% endif %}</td>
+      <td class="num">{% if c.sell_total %}{{ '%.0f' % c.sell_total }} {{ c.quote_currency }}{% else %}—{% endif %}</td>
+      <td class="num">{{ c.margin_pct | pct if c.margin_pct is not none else '—' }}</td>
+      <td><span class="badge b-{{ c.status.value }}">{{ c.status.value }}</span></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <div class="panel">No freight items yet. RFQs and quotes from the inbox appear here as they arrive.</div>
+  {% endif %}
+{% endblock %}

@@ -58,6 +58,9 @@ table.list tr.clickable:hover { background: #f8fafc; }
 .b-received { background: #e5e7eb; color: #4b5563; }
 .b-approved { background: #d1fae5; color: #065f46; }
 .b-pending { background: #fef3c7; color: #92400e; }
+.b-parsed { background: #e0e7ff; color: #3730a3; }
+.b-accepted { background: #d1fae5; color: #065f46; }
+.b-expired { background: #e5e7eb; color: #6b7280; }
 
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; margin-bottom: 16px; }
 .panel h3 { margin: 0 0 10px; font-size: 14px; }

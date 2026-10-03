@@ -1,0 +1,129 @@
+{% extends "layout.html" %}
+{% block title %}{{ c.subject }} · OrderInbox AI{% endblock %}
+{% block content %}
+  <p class="page-sub"><a href="/freight">← Freight</a></p>
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <div>
+      <h1>{{ c.subject or 'Freight item' }}</h1>
+      <p class="page-sub" style="margin-bottom:0">
+        Received {{ c.received_at | dt if c.received_at else '—' }} · from <b>{{ c.sender or '—' }}</b>
+        {% if c.kind == 'quote' and c.counterparty %} · counterparty <b>{{ c.counterparty }}</b>{% endif %}
+        {% if c.rfq_uid %} · linked to RFQ <b>{{ c.rfq_uid }}</b>{% endif %}
+      </p>
+    </div>
+    <span>
+      <span class="chip">{{ c.kind }}</span>
+      <span class="badge b-{{ c.status.value }}">{{ c.status.value }}</span>
+    </span>
+  </div>
+
+  {% if c.status.value in ('ready', 'exception') %}
+  <div class="actions">
+    <form method="post" action="/freight/{{ c.id }}/approve" style="display:flex; gap:8px; align-items:center;">
+      <button class="primary" type="submit">{% if c.kind == 'rfq' %}Approve → send RFQ to agents{% else %}Approve → issue customer quote{% endif %}</button>
+      <span class="muted" style="font-size:12.5px;">Prepares the outbound mail; nothing ships until you approve it here.</span>
+    </form>
+    <form method="post" action="/freight/{{ c.id }}/reject" style="display:flex; gap:8px;">
+      <input name="reason" placeholder="Reason (optional)" style="padding:8px 10px; border:1px solid var(--line); border-radius:9px; font:inherit;">
+      <button class="danger" type="submit">Reject</button>
+    </form>
+    {% if c.stored_path %}
+    <form method="post" action="/freight/{{ c.id }}/reprocess">
+      <button class="small" type="submit">Re-process</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if c.kind == 'rfq' and c.rfq %}
+  <div class="panel">
+    <h3>Customer request
+      {% if c.rfq.extract_method %}<span class="chip">{{ c.rfq.extract_method }}</span>{% endif %}
+      {% if c.rfq.confidence %}<span class="chip">confidence {{ '%.0f%%' % (c.rfq.confidence * 100) }}</span>{% endif %}
+    </h3>
+    <div class="kv">
+      <span class="k">Customer</span><span class="v">{{ c.rfq.customer_matched or c.rfq.customer_name_as_written or '—' }}
+        {% if c.rfq.customer_match_score %}<span class="score {{ 's-hi' if c.rfq.customer_match_score >= 90 else 's-mid' }}">{{ '%.0f' % c.rfq.customer_match_score }}</span>{% endif %}
+      </span>
+      <span class="k">Lane</span><span class="v">{{ c.rfq.origin_port or '—' }} → {{ c.rfq.destination_port or '—' }}</span>
+      <span class="k">Equipment</span><span class="v">{{ c.rfq.equipment or '—' }}{% if c.rfq.container_count %} × {{ c.rfq.container_count }}{% endif %}</span>
+      <span class="k">Cargo ready</span><span class="v">{{ c.rfq.ready_date or '—' }}</span>
+      <span class="k">Free time</span><span class="v">{% if c.rfq.free_demurrage_days or c.rfq.free_detention_days %}{{ c.rfq.free_demurrage_days }}d demurrage / {{ c.rfq.free_detention_days }}d detention{% else %}not stated{% endif %}</span>
+      <span class="k">Cargo</span><span class="v">{{ c.rfq.cargo or '—' }}{% if c.rfq.dangerous_goods %} <span class="badge b-exception">DG</span>{% endif %}</span>
+      <span class="k">Incoterm</span><span class="v">{{ c.rfq.incoterm or '—' }}</span>
+      <span class="k">Budget</span><span class="v">{% if c.rfq.budget_total %}{{ '%.0f' % c.rfq.budget_total }} {{ c.rfq.budget_currency }}{% else %}not stated{% endif %}</span>
+      <span class="k">Notes</span><span class="v">{{ c.rfq.notes or '—' }}</span>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if c.kind == 'quote' and c.quote %}
+  <div class="panel">
+    <h3>Quote — {{ c.counterparty or 'unnamed counterparty' }}
+      <span class="chip">{{ c.quote.origin_port or '?' }} → {{ c.quote.destination_port or '?' }}</span>
+      {% if c.quote.equipment %}<span class="chip">{{ c.quote.equipment }}</span>{% endif %}
+      {% if c.quote.valid_from or c.quote.valid_to %}<span class="chip">valid {{ c.quote.valid_from or '?' }} – {{ c.quote.valid_to or '?' }}</span>{% endif %}
+    </h3>
+    <div class="kv">
+      <span class="k">Base freight</span><span class="v">{{ '%.2f' % c.quote.base_freight.amount }} {{ c.quote.base_freight.currency }}</span>
+      <span class="k">Included in base</span><span class="v">{{ c.quote.included | join(', ') or '—' }}</span>
+      <span class="k">Excluded from base</span><span class="v">{{ c.quote.excluded | join(', ') or '—' }}</span>
+      <span class="k">Free time</span><span class="v">{% if c.quote.free_time.demurrage_days or c.quote.free_time.detention_days %}{{ c.quote.free_time.demurrage_days }}d demurrage / {{ c.quote.free_time.detention_days }}d detention{% else %}not stated{% endif %}</span>
+      <span class="k">Conditional</span><span class="v">{{ c.quote.conditional_charges | join(', ') or '—' }}</span>
+      <span class="k">Conditions</span><span class="v">{{ c.quote.conditions | join('; ') or '—' }}</span>
+    </div>
+    {% if c.quote.charges %}
+    <table class="lines" style="margin-top:10px;">
+      <tr><th>Type</th><th>As written</th><th class="num">Amount</th><th>Currency</th></tr>
+      {% for ch in c.quote.charges %}
+      <tr>
+        <td>{{ ch.type }}</td>
+        <td class="muted" style="font-size:12px;">{{ ch.as_written or '—' }}</td>
+        <td class="num">{{ '%.2f' % ch.amount if ch.amount is not none else '—' }}</td>
+        <td>{{ ch.currency or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+  </div>
+
+  <div class="panel">
+    <h3>Pricing
+      {% if c.recommendation %}<span class="chip">{{ c.recommendation }}</span>{% endif %}
+    </h3>
+    <div class="cards" style="margin-bottom:0;">
+      <div class="card"><div class="n">{{ '%.0f' % c.buy_cost if c.buy_cost else '—' }} {{ c.quote_currency }}</div><div class="l">Buy cost (all-in, base currency)</div></div>
+      <div class="card {{ 'err' if (c.margin_pct is not none and c.margin_pct < margin_threshold) else 'ok' }}"><div class="n">{{ c.margin_pct | pct if c.margin_pct is not none else '—' }}</div><div class="l">Margin (threshold {{ margin_threshold | pct }})</div></div>
+      <div class="card"><div class="n">{{ '%.0f' % c.sell_total if c.sell_total is not none else '—' }} {{ c.quote_currency }}</div><div class="l">Sell (budget or recommended)</div></div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if c.issues %}
+  <div class="panel">
+    <h3>Validation</h3>
+    {% for i in c.issues %}
+    <div class="issue {{ i.severity.value }}">
+      <span class="code">{{ i.severity.value }} · {{ i.code }}</span>
+      {{ i.message }}
+      {% if i.suggested_fix %}<div class="fix">→ {{ i.suggested_fix }}</div>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% elif c.status.value == 'ready' %}
+  <div class="panel"><h3>Validation</h3><div class="issue">All deterministic rules passed.</div></div>
+  {% endif %}
+
+  {% if c.error and c.status.value in ('rejected', 'failed') %}
+  <div class="panel"><h3>Note</h3><div class="issue {{ 'error' if c.status.value == 'failed' else '' }}">{{ c.error }}</div></div>
+  {% endif %}
+
+  <div class="panel">
+    <h3>Pipeline log</h3>
+    <div class="log">
+      {% for entry in c.log %}
+      <div><span class="t">{{ entry.at[11:19] if entry.get('at') else '' }} {{ entry.at[:10] if entry.get('at') else '' }}</span>{{ entry.msg }}</div>
+      {% endfor %}
+    </div>
+  </div>
+{% endblock %}

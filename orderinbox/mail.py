@@ -96,10 +96,12 @@ class MailMonitor:
                 else:
                     payload = msg.get_payload(decode=True)
                     body = (payload or b"").decode("utf-8", "ignore") if payload else (msg.get_payload() or "")
-                # cheap filter: only store messages that look like orders or have attachments
+                # cheap filter: only store messages that look like orders,
+                # freight (RFQ/quote), or have attachments
                 has_att = any(p.get_content_disposition() == "attachment" for p in msg.walk()) if msg.is_multipart() else False
                 from .extract.documents import order_like_text
-                if not has_att and not order_like_text(body):
+                from .freight.extract import classify_freight_text
+                if not has_att and not order_like_text(body) and classify_freight_text(body) is None:
                     continue
                 dest = self._store(raw, subject, sender)
                 order = self.pipeline.process_message(

@@ -24,6 +24,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from ..config import Settings
+from ..mcp import build_tools, register_mcp_routes
 from ..pipeline import Pipeline
 from ..web.app_context import AppContext
 
@@ -49,7 +50,10 @@ def create_app(settings: Settings, ctx: AppContext) -> FastAPI:
     @app.middleware("http")
     async def auth_guard(request: Request, call_next):
         path = request.url.path
-        if not path.startswith("/static") and not path.startswith("/api/"):
+        # /api and /mcp use their own token auth (consumed by the Odoo module
+        # and by agents), so the session guard skips them.
+        if not (path.startswith("/static") or path.startswith("/api/")
+                or path.startswith("/mcp/")):
             if not authed(request) and path not in ("/login", "/logout"):
                 return RedirectResponse("/login?next=" + path, status_code=303)
         return await call_next(request)
@@ -147,10 +151,12 @@ def create_app(settings: Settings, ctx: AppContext) -> FastAPI:
         ready = counts.get("ready", 0)
         exceptions = counts.get("exception", 0)
         sent = counts.get("sent", 0)
-        lines_total = sum(len(o.extraction.lines) if o.extraction else 0 for o in orders)
+        freight_counts = ctx.store.freight_counts()
         return templates.TemplateResponse(request, "dashboard.html", {
             "counts": counts, "orders": orders,
             "ready": ready, "exceptions": exceptions, "sent": sent,
+            "freight_counts": freight_counts,
+            "freight": ctx.store.list_freight(limit=8),
             "backend": ctx.pipeline.backend.name,
         })
 
@@ -200,6 +206,66 @@ def create_app(settings: Settings, ctx: AppContext) -> FastAPI:
         return RedirectResponse(f"/orders/{order_id}", status_code=303)
 
     # ------------------------------------------------------------------
+    # freight (RateScout) workflow: RFQs + quotes
+    _FREIGHT_STATUSES = ("ready", "exception", "sent", "rejected", "failed",
+                         "received", "parsed", "accepted", "expired")
+
+    @app.get("/freight", response_class=HTMLResponse)
+    @app.get("/freight/{case_id}", response_class=HTMLResponse)
+    def freight(request: Request, case_id: int | None = None, kind: str = "", status: str = ""):
+        if case_id is not None:
+            case = ctx.store.get_freight(case_id)
+            if case is None:
+                return templates.TemplateResponse(request, "404.html", {}, status_code=404)
+            return templates.TemplateResponse(request, "freight_detail.html", {
+                "c": case,
+                "margin_threshold": settings.freight_margin_threshold_pct,
+                "backend": ctx.pipeline.backend.name,
+            })
+        status = status if status in _FREIGHT_STATUSES else ""
+        kind = kind if kind in ("rfq", "quote") else ""
+        cases = ctx.store.list_freight(status=status or None, kind=kind or None, limit=300)
+        all_cases = ctx.store.list_freight(limit=1000)
+        return templates.TemplateResponse(request, "freight.html", {
+            "cases": cases,
+            "kind": kind, "status": status,
+            "counts": ctx.store.freight_counts(),
+            "total": len(all_cases),
+            "rfq_count": sum(1 for x in all_cases if x.kind == "rfq"),
+            "quote_count": sum(1 for x in all_cases if x.kind == "quote"),
+        })
+
+    @app.post("/freight/{case_id}/approve")
+    def freight_approve(request: Request, case_id: int):
+        case = ctx.store.get_freight(case_id)
+        if case is None:
+            return RedirectResponse("/freight", status_code=303)
+        if case.status.value not in ("ready", "exception"):
+            return RedirectResponse(f"/freight/{case_id}", status_code=303)
+        try:
+            ctx.pipeline.approve_freight(case)
+        except Exception as exc:
+            log.exception("freight approve failed")
+            case.add_log(f"approve failed: {exc}")
+            ctx.store.upsert_freight(case)
+        return RedirectResponse(f"/freight/{case_id}", status_code=303)
+
+    @app.post("/freight/{case_id}/reject")
+    def freight_reject(request: Request, case_id: int, reason: str = Form("")):
+        case = ctx.store.get_freight(case_id)
+        if case is not None:
+            ctx.pipeline.reject_freight(case, reason)
+        return RedirectResponse(f"/freight/{case_id}", status_code=303)
+
+    @app.post("/freight/{case_id}/reprocess")
+    def freight_reprocess(request: Request, case_id: int):
+        case = ctx.store.get_freight(case_id)
+        if case and case.stored_path and Path(case.stored_path).exists():
+            ctx.pipeline.process_message(case.stored_path, subject=case.subject,
+                                         sender=case.sender, received_at=case.received_at)
+        return RedirectResponse(f"/freight/{case_id}", status_code=303)
+
+    # ------------------------------------------------------------------
     @app.get("/inbox", response_class=HTMLResponse)
     def inbox(request: Request):
         return templates.TemplateResponse(request, "inbox.html", {
@@ -223,6 +289,11 @@ def create_app(settings: Settings, ctx: AppContext) -> FastAPI:
             ("Inbox", f"{s.mail_provider} — {s.imap_host}:{s.imap_port} folder={s.imap_folder}" if s.mail_provider != "none" else "manual only", ""),
             ("LLM", f"mode={s.llm_mode}, ollama={s.ollama_url} model={s.ollama_model}"
                     + (f", cloud={s.cloud_base_url}/{s.cloud_model}" if s.cloud_base_url else ""), ""),
+            ("Model gateway", _providers_line(ctx), ""),
+            ("Escalation", f"auto>={s.escalate_auto}, verify>={s.escalate_verify}, "
+                           f"cloud>={s.escalate_cloud}; producer/verifier="
+                           f"{'on' if s.use_producer_verifier else 'off'}, "
+                           f"cloud-escalation={'on' if s.use_cloud_escalation else 'off'}", ""),
             ("Matching", f"auto-ready ≥ {s.match_threshold:.0f}, low bar {s.low_match_threshold:.0f}, price tolerance {s.price_deviation_tolerance:.0%}", ""),
             ("Currencies", ", ".join(s.currencies()), ""),
             ("Version", f"OrderInbox AI {__import__('orderinbox').__version__}", ""),
@@ -300,4 +371,31 @@ def create_app(settings: Settings, ctx: AppContext) -> FastAPI:
         ctx.pipeline.reject(order, reason)
         return {"ok": True, "uid": uid, "status": order.status.value}
 
+    # ------------------------------------------------------------------
+    # /mcp/* — Model Context Protocol tools (Section 6). Same token auth as
+    # the /api bridge so an external agent (or the local Strata model) can
+    # call the product's capabilities: freight.*, customer, quote, approval.
+    try:
+        registry = build_tools(
+            backend=ctx.pipeline.backend, store=ctx.store, pipeline=ctx.pipeline,
+            alias_store=ctx.pipeline.alias_store)
+        register_mcp_routes(app, registry, token=settings.api_token)
+    except Exception:
+        log.exception("MCP tool registration failed (continuing without /mcp)")
+
     return app
+
+
+def _providers_line(ctx) -> str:
+    """One-line summary of the model gateway providers for the settings page."""
+    try:
+        summary = ctx.pipeline.llm.providers()
+    except Exception:
+        return "(gateway unavailable)"
+    if not summary:
+        return "no providers configured (deterministic only)"
+    parts = []
+    for p in summary:
+        state = "ready" if p["available"] else "off"
+        parts.append(f"{p['name']} [{p['kind']}/{state}]")
+    return ", ".join(parts)

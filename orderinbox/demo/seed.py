@@ -10,6 +10,10 @@ What the demo deliberately exercises:
   5. duplicate PO (same customer + PO number as #1)            → EXCEPTION (DUPLICATE_PO)
   6. pack-size violation + price deviation                     → EXCEPTION
   7. non-order email (safety meeting reminder)                  → REJECTED
+  8. customer RFQ (40HC Shanghai→Toronto, budget stated)        → READY (freight)
+  9. agent quote #1 — all-in cheapest, margin above threshold  → READY (freight, recommended)
+ 10. agent quote #2 — cheap base but thin all-in margin        → EXCEPTION (freight)
+ 11. agent quote #3 — all-in above the customer budget         → EXCEPTION (freight)
 """
 from __future__ import annotations
 
@@ -278,5 +282,60 @@ def build_demo(settings: Settings) -> list[Path]:
         "Fri, 02 Oct 2026 08:00:00 -0500",
         "Reminder: the monthly warehouse safety meeting will be held Friday at 3pm "
         "in the break room. Please bring your PPE. Pizza provided."))
+
+    # ======================================================================
+    # freight (RateScout) demo — a customer RFQ answered by three agent
+    # quotes on the same lane. Quote #1 is the all-in cheapest and clears
+    # the margin policy; #2 has a cheap base but a thin all-in margin;
+    # #3 prices above the customer's budget.
+    # ======================================================================
+    cust6 = next(p for p in seed["partners"] if p["name"].startswith("Prairie"))
+    # --- 8. customer RFQ --------------------------------------------------
+    save("8_rfq_toronto.eml", _eml(
+        cust6["email"],
+        "RFQ — 2x 40HC Shanghai to Toronto, ready Oct 12",
+        "Fri, 02 Oct 2026 09:15:00 -0400",
+        "Hi,\n\n"
+        "We need 2x 40HC from Shanghai to Toronto, non-DG electronics.\n"
+        "Cargo is ready Oct 12.\n"
+        "We need 14 free days demurrage + 7 detention.\n"
+        "Our budget is around USD 2,400 per container.\n\n"
+        "Thanks,\nLogistics — Prairie Ridge Construction"))
+
+    # --- 9. agent quote #1 (all-in cheapest) ------------------------------
+    save("9_quote_shanghai_abc.eml", _eml(
+        "quotes@shanghaiabc.com",
+        "Quote 234 — Shanghai ABC Logistics (40HC SHA→VAN)",
+        "Fri, 02 Oct 2026 13:40:00 +0800",
+        "Quote 234 — Shanghai ABC Logistics\n"
+        "USD 1,925 / 40HQ\n"
+        "POL: SHA\nPOD: VAN\n"
+        "incl. BAF / CAF\nexcl. THC both ends\n"
+        "DTHC CAD 735\nDOC USD 50\n14 DEM + 7 DET\n"
+        "PSS subject to vessel\n"
+        "valid ETD 12-19 OCT\n"
+        "subject to space/equipment\n"
+        "rail VAN-TOR excluded"))
+
+    # --- 10. agent quote #2 (cheap base, thin all-in margin) --------------
+    save("10_quote_north_bridge.eml", _eml(
+        "sales@northbridge-freight.com",
+        "Rate for your RFQ — North Bridge Freight",
+        "Fri, 02 Oct 2026 15:05:00 -0400",
+        "Our rate for your RFQ, North Bridge Freight:\n"
+        "O/F USD 1,850 / 40HC\nPOL SHA\nPOD VAN\n"
+        "incl BAF, CAF\nexcl THC\n"
+        "THC USD 450\nDOC USD 45\n14 DEM + 7 DET\n"
+        "valid ETD Oct 12-19\nsubject to space"))
+
+    # --- 11. agent quote #3 (above budget) --------------------------------
+    save("11_quote_global_ocean.eml", _eml(
+        "rates@globalocean.com",
+        "Ocean rate — Global Ocean Lines (40HC SHA→VAN)",
+        "Sat, 03 Oct 2026 02:20:00 -0700",
+        "Rate from Global Ocean Lines:\n"
+        "USD 2,380 / 40HC, POL Shanghai, POD Vancouver\n"
+        "excl. everything else\nDTHC USD 480\nDOC USD 60\n"
+        "valid ETD 12-19 OCT\nsubject to space/equipment"))
 
     return created

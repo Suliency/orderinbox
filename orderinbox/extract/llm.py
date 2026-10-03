@@ -1,21 +1,23 @@
-"""LLM client: local-first (Ollama) with optional cloud fallback.
+"""LLM client — a thin facade over the model gateway.
 
-Any OpenAI-compatible endpoint works for cloud: OpenAI, OpenRouter, DeepSeek,
-vLLM, LM Studio, Together, Groq, ...
+The heavy lifting (provider selection, local-first routing, escalation,
+producer/verifier) now lives in `orderinbox.ai`. This module keeps the
+historical `LLMClient` surface (`available()`, `complete()`,
+`extract_json()`) plus the order-extraction prompts, so the parser and the
+matchers are unchanged. It also remains the entry point that honours
+`LLM_MODE=off` (deterministic-only) for the zero-dependency demo path.
 
-`auto` mode: try the local Ollama model first; on failure or timeout, fall
-back to the configured cloud endpoint if one is configured. This implements
-the plan's "Mode C: local smaller model with optional cloud fallback".
+Deployment of the model itself is described in the proposal: a local Strata
+server (or Ollama / vLLM) does the volume; a cloud provider is the escalation
+target for the ambiguous tail.
 """
 from __future__ import annotations
 
-import json
 import logging
-import re
 from typing import Any, Optional
 
-import httpx
-
+from ..ai import ModelGateway, RouteRequest
+from ..ai.providers import LLMError, parse_json_loose  # re-exported for callers
 from ..config import Settings
 
 log = logging.getLogger("orderinbox.llm")
@@ -44,112 +46,49 @@ SCHEMA_HINT = """{
 }"""
 
 
-class LLMError(RuntimeError):
-    pass
-
-
 class LLMClient:
-    def __init__(self, settings: Settings):
+    """Facade used by the pipeline. Delegates to the ModelGateway.
+
+    The public contract is unchanged from the original single-backend client:
+      - available() -> is any model reachable?
+      - complete(system, user) -> str
+      - extract_json(system, user) -> dict
+    Internally each call is routed local-first through the gateway, and the
+    gateway exposes the richer escalation / verifier behaviour the proposal
+    asks for (see orderinbox.ai.gateway.ModelGateway).
+    """
+
+    def __init__(self, settings: Settings, gateway: Optional[ModelGateway] = None):
         self.settings = settings
-        self._ollama_available: Optional[bool] = None
+        self.gateway = gateway or ModelGateway(settings)
 
     # ------------------------------------------------------------------
     def available(self) -> bool:
-        """True if any backend can be used at all."""
         s = self.settings
         if s.llm_mode == "off":
             return False
-        if s.llm_mode in ("auto", "ollama"):
-            if self._ollama_available is None:
-                self._ollama_available = self._ping_ollama()
-            if self._ollama_available:
-                return True
-        if s.llm_mode in ("auto", "cloud"):
-            return bool(s.cloud_base_url and s.cloud_api_key)
-        return False
+        return self.gateway.available()
 
-    def _ping_ollama(self) -> bool:
-        s = self.settings
-        try:
-            r = httpx.get(f"{s.ollama_url}/api/tags", timeout=5)
-            return r.status_code == 200
-        except Exception:
-            return False
-
-    def _backends(self) -> list[tuple[str, str, str, str]]:
-        """Yield (kind, base_url, model, api_key) in priority order.
-        kind is "ollama" or "openai" (any OpenAI-compatible endpoint)."""
-        s = self.settings
-        out: list[tuple[str, str, str, str]] = []
-        if s.llm_mode in ("auto", "ollama") and (self._ollama_available or self._ping_ollama()):
-            out.append(("ollama", s.ollama_url.rstrip("/"), s.ollama_model, ""))
-        if s.llm_mode in ("auto", "cloud") and s.cloud_base_url and s.cloud_api_key:
-            out.append(("openai", s.cloud_base_url.rstrip("/"), s.cloud_model, s.cloud_api_key))
-        return out
+    def providers(self) -> list[dict]:
+        return self.gateway.providers_summary()
 
     # ------------------------------------------------------------------
-    def complete(self, system: str, user: str) -> str:
-        last_err: Optional[Exception] = None
-        for kind, base, model, key in self._backends():
-            try:
-                log.info("LLM call via %s (%s)", kind, model)
-                return self._call(kind, base, model, key, system, user)
-            except Exception as exc:
-                last_err = exc
-                log.warning("LLM backend %s failed: %s", kind, exc)
-        raise LLMError(f"all LLM backends failed: {last_err}")
+    def complete(self, system: str, user: str, *, task: str = "order_extraction",
+                 confidentiality: str = "normal", complexity: str = "medium") -> str:
+        req = RouteRequest(task=task, confidentiality=confidentiality, complexity=complexity)
+        text, _decision = self.gateway.complete(req, system, user)
+        return text
 
-    def _call(self, kind: str, base: str, model: str, key: str, system: str, user: str) -> str:
-        if kind == "ollama":
-            url = f"{base}/api/chat"
-            payload = {
-                "model": model,
-                "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
-                "stream": False,
-                "options": {"temperature": self.settings.llm_temperature},
-                "format": "json",
-            }
-            headers = {}
-        else:
-            url = base if base.endswith("/chat/completions") else f"{base}/chat/completions"
-            payload = {
-                "model": model,
-                "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
-                "temperature": self.settings.llm_temperature,
-                "response_format": {"type": "json_object"},
-            }
-            headers = {"Authorization": f"Bearer {key}"}
-        r = httpx.post(url, json=payload, headers=headers, timeout=self.settings.llm_timeout)
-        if r.status_code != 200:
-            raise LLMError(f"LLM HTTP {r.status_code}: {r.text[:200]}")
-        data = r.json()
-        if kind == "ollama":
-            return data["message"]["content"]
-        return data["choices"][0]["message"]["content"]
-
-    # ------------------------------------------------------------------
-    def extract_json(self, system: str, user: str) -> dict[str, Any]:
-        raw = self.complete(system, user)
-        return parse_json_loose(raw)
+    def extract_json(self, system: str, user: str, *, task: str = "order_extraction",
+                     confidentiality: str = "normal", complexity: str = "medium") -> dict[str, Any]:
+        req = RouteRequest(task=task, confidentiality=confidentiality, complexity=complexity)
+        data, _decision = self.gateway.extract_json(req, system, user)
+        return data
 
 
-def parse_json_loose(raw: str) -> dict[str, Any]:
-    """Parse JSON that an LLM may have wrapped in fences or commentary."""
-    raw = raw.strip()
-    if raw.startswith("```"):
-        raw = re.sub(r"^```[a-zA-Z]*\s*", "", raw)
-        raw = re.sub(r"\s*```$", "", raw)
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        m = re.search(r"\{.*\}", raw, re.DOTALL)
-        if m:
-            try:
-                return json.loads(m.group(0))
-            except json.JSONDecodeError:
-                pass
-    raise LLMError(f"could not parse LLM JSON: {raw[:200]}")
-
+# ----------------------------------------------------------------------
+# order-extraction prompts
+# ----------------------------------------------------------------------
 
 ORDER_EXTRACTION_PROMPT = (
     "Extract the order from the document below.\n\n"

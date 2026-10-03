@@ -54,15 +54,44 @@ class Settings:
     inbox_lookback_days: int = field(default_factory=lambda: int(os.environ.get("INBOX_LOOKBACK_DAYS", "30")))
     inbox_poll_seconds: int = field(default_factory=lambda: int(os.environ.get("INBOX_POLL_SECONDS", "120")))
 
-    # --- LLM ------------------------------------------------------------
+    # --- LLM (model gateway) --------------------------------------------
+    # LLM_MODE gates which *class* of provider is enabled:
+    #   auto   = local providers first, cloud fallback if configured
+    #   ollama = local Ollama only
+    #   cloud  = cloud / remote providers only
+    #   off    = deterministic parsing only (no model calls)
     llm_mode: str = field(default_factory=lambda: os.environ.get("LLM_MODE", "auto"))  # auto | ollama | cloud | off
+    # Local backends. Ollama stays the zero-config default; Strata and vLLM
+    # are OpenAI-compatible servers (a DGX Spark running the main model, or a
+    # second Spark running the verifier/vision/embedding models).
     ollama_url: str = field(default_factory=lambda: os.environ.get("OLLAMA_URL", "http://localhost:11434"))
     ollama_model: str = field(default_factory=lambda: os.environ.get("OLLAMA_MODEL", "qwen2.5:1.5b"))
+    strata_url: str = field(default_factory=lambda: os.environ.get("STRATA_URL", ""))
+    strata_model: str = field(default_factory=lambda: os.environ.get("STRATA_MODEL", ""))
+    strata_api_key: str = field(default_factory=lambda: os.environ.get("STRATA_API_KEY", ""))
+    strata_vision: bool = field(default_factory=lambda: _bool(os.environ.get("STRATA_VISION")))
+    vllm_url: str = field(default_factory=lambda: os.environ.get("VLLM_URL", ""))
+    vllm_model: str = field(default_factory=lambda: os.environ.get("VLLM_MODEL", ""))
+    vllm_api_key: str = field(default_factory=lambda: os.environ.get("VLLM_API_KEY", ""))
+    vllm_vision: bool = field(default_factory=lambda: _bool(os.environ.get("VLLM_VISION")))
+    # Cloud backends (any OpenAI-compatible endpoint, plus Anthropic / Gemini).
     cloud_base_url: str = field(default_factory=lambda: os.environ.get("LLM_CLOUD_BASE_URL", ""))
     cloud_api_key: str = field(default_factory=lambda: os.environ.get("LLM_CLOUD_API_KEY", ""))
     cloud_model: str = field(default_factory=lambda: os.environ.get("LLM_CLOUD_MODEL", "gpt-4o-mini"))
+    anthropic_api_key: str = field(default_factory=lambda: os.environ.get("ANTHROPIC_API_KEY", ""))
+    anthropic_model: str = field(default_factory=lambda: os.environ.get("ANTHROPIC_MODEL", "claude-3-5-sonnet-latest"))
+    gemini_api_key: str = field(default_factory=lambda: os.environ.get("GEMINI_API_KEY", ""))
+    gemini_model: str = field(default_factory=lambda: os.environ.get("GEMINI_MODEL", "gemini-1.5-pro"))
     llm_temperature: float = field(default_factory=lambda: _float(os.environ.get("LLM_TEMPERATURE"), 0.1))
     llm_timeout: float = field(default_factory=lambda: _float(os.environ.get("LLM_TIMEOUT"), 600.0))
+    # Confidence-tier escalation cut-points (proposal Section 10).
+    escalate_auto: float = field(default_factory=lambda: _float(os.environ.get("ESCALATE_AUTO", "0.95")))
+    escalate_verify: float = field(default_factory=lambda: _float(os.environ.get("ESCALATE_VERIFY", "0.80")))
+    escalate_cloud: float = field(default_factory=lambda: _float(os.environ.get("ESCALATE_CLOUD", "0.60")))
+    # When the producer and verifier disagree, or confidence lands in the
+    # cloud band, optionally force a cloud pass before a human sees it.
+    use_producer_verifier: bool = field(default_factory=lambda: _bool(os.environ.get("USE_PRODUCER_VERIFIER"), True))
+    use_cloud_escalation: bool = field(default_factory=lambda: _bool(os.environ.get("USE_CLOUD_ESCALATION"), True))
 
     # --- matching / rules thresholds -------------------------------------
     match_threshold: float = field(default_factory=lambda: _float(os.environ.get("MATCH_THRESHOLD", "80.0")))
@@ -70,6 +99,8 @@ class Settings:
     price_deviation_tolerance: float = field(default_factory=lambda: _float(os.environ.get("PRICE_DEVIATION_TOLERANCE", "0.15")))
     confidence_auto_ready: float = field(default_factory=lambda: _float(os.environ.get("CONFIDENCE_AUTO_READY", "0.85")))
     allowed_currencies: str = field(default_factory=lambda: os.environ.get("ALLOWED_CURRENCIES", "USD,CAD,EUR"))
+    # Freight (RateScout) domain
+    freight_margin_threshold_pct: float = field(default_factory=lambda: _float(os.environ.get("FREIGHT_MARGIN_THRESHOLD", "10.0")))
 
     # --- web ------------------------------------------------------------
     web_host: str = field(default_factory=lambda: os.environ.get("WEB_HOST", "0.0.0.0"))

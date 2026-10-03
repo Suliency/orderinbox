@@ -27,7 +27,7 @@ and route the relationship (partner or direct).**
 > in two minutes:
 >
 > ```
-> git clone https://github.com/{repo}/orderinbox.git && cd orderinbox
+> git clone https://github.com/Suliency/orderinbox.git && cd orderinbox
 > docker compose up
 > # → http://localhost:8501  (password: orderinbox)
 > ```

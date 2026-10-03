@@ -17,7 +17,7 @@ else
   git -C "$WORK" checkout --orphan "$BRANCH"
 fi
 
-git -C "$WORK" rm -rq --ignore-unmatch . 
+git -C "$WORK" rm -rfq --ignore-unmatch .
 git -C "$WORK" clean -fdxq
 git archive HEAD addons/orderinbox | tar -x -C "$WORK" --strip-components=1
 cp README.md "$WORK/README.md"

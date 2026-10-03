@@ -50,3 +50,6 @@ include = ["orderinbox*"]
 
 [tool.setuptools.package-data]
 orderinbox = ["web/templates/*.html", "web/static/*", "demo/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

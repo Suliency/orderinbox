@@ -73,6 +73,11 @@ a formal PDF PO, a CSV with a suspicious SKU, an inline email-body order, a
 duplicate PO, a pack-size violation, and a non-order email — and shows each
 one with its match scores, validation results, and one-click approval.
 
+The first run downloads the local model (~1 GB) before the console starts.
+On a CPU-only machine the local model is slow (from tens of seconds to a few
+minutes per order), so the demo orders appear in the console one by one as
+they finish processing.
+
 No Docker?
 
 ```bash

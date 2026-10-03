@@ -40,6 +40,8 @@ dependencies = [
 [project.optional-dependencies]
 gmail = ["google-api-python-client>=2.120", "google-auth>=2.28"]
 ocr = ["pytesseract>=0.10"]
+# demo dataset generation (sample PDF orders); installed in the Docker image
+demo = ["reportlab>=4.1"]
 dev = ["pytest>=8.0", "reportlab>=4.1"]
 
 [project.scripts]

@@ -11,14 +11,15 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-COPY pyproject.toml README.md LICENSE ./
-COPY orderinbox ./orderinbox
-RUN pip install --no-cache-dir .[dev]
-
 # tesseract + poppler make scanned-PDF OCR and robust PDF text extraction work
 RUN apt-get update \
     && apt-get install -y --no-install-recommends tesseract-ocr poppler-utils \
     && rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml README.md LICENSE ./
+COPY orderinbox ./orderinbox
+# [demo] = reportlab for the sample PDF orders; test tools stay out of the image
+RUN pip install --no-cache-dir .[demo]
 
 VOLUME /data
 EXPOSE 8501

@@ -23,7 +23,12 @@ services:
       - ORDERINBOX_API_TOKEN=${ORDERINBOX_API_TOKEN:-demo-bridge-token}
       - ORDERINBOX_DEMO=${ORDERINBOX_DEMO:-1}
     depends_on:
-      - ollama
+      ollama:
+        condition: service_started
+      # wait for the model so the demo orders are read by the local AI, not
+      # the rules-only fallback (first run downloads ~1 GB)
+      ollama-pull:
+        condition: service_completed_successfully
     volumes:
       - oi-data:/data
     restart: unless-stopped
@@ -41,7 +46,9 @@ services:
     image: ollama/ollama:latest
     depends_on:
       - ollama
-    entrypoint: ["/bin/sh", "-c", "sleep 5 && ollama pull qwen2.5:1.5b || true"]
+    # waits for the ollama server instead of a fixed sleep; never fails the
+    # stack (the app falls back to rules-only extraction without a model)
+    entrypoint: ["/bin/sh", "-c", "until ollama list >/dev/null 2>&1; do sleep 1; done; ollama pull qwen2.5:1.5b || true"]
     environment:
       - OLLAMA_HOST=http://ollama:11434
     restart: "no"

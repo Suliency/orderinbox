@@ -5,12 +5,15 @@ build the same object graph.
 
 Boot behavior: when ORDERINBOX_DEMO=1 and the database is empty, the
 appliance seeds and processes the demo dataset on first start — this is what
-makes `docker compose up` a two-minute sales demo.
+makes `docker compose up` a two-minute sales demo. Processing runs in a
+background thread (a local model on CPU can take minutes per order), so the
+console is reachable immediately and orders appear as they finish.
 """
 from __future__ import annotations
 
 import logging
 import os
+import threading
 
 from ..config import Settings
 from ..db import Store
@@ -34,6 +37,7 @@ class AppContext:
         self.llm = LLMClient(self.settings)
         self.pipeline = Pipeline(self.settings, self.backend, self.llm, self.store)
         self.mail_monitor = MailMonitor(self.settings, self.pipeline)
+        self.seed_thread: threading.Thread | None = None
         self._maybe_seed_demo()
 
     def _make_backend(self) -> CatalogBackend:
@@ -48,7 +52,11 @@ class AppContext:
             return
         if self.store.counts_by_status():
             return  # already seeded / has data
-        log.info("ORDERINBOX_DEMO=1 and database is empty — seeding demo dataset")
+        log.info("ORDERINBOX_DEMO=1 and database is empty — seeding demo dataset in background")
+        self.seed_thread = threading.Thread(target=self._seed_demo, name="demo-seed", daemon=True)
+        self.seed_thread.start()
+
+    def _seed_demo(self) -> None:
         try:
             from ..demo.seed import build_demo
             created = build_demo(self.settings)

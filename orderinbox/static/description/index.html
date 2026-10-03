@@ -1,0 +1,97 @@
+<section style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#101418;line-height:1.55">
+
+  <!-- Hero -->
+  <div style="text-align:center;padding:28px 0 8px">
+    <img src="cover.png" alt="OrderInbox AI — PO to draft sales order in Odoo" width="100%"
+         style="max-width:1000px;border-radius:12px;box-shadow:0 8px 30px rgba(16,20,24,.18)"/>
+  </div>
+
+  <h1 style="font-size:26px;margin:22px 0 6px">Review emailed customer purchase orders in Odoo — and approve them into draft sales orders</h1>
+  <p style="font-size:15px;color:#5b6570;margin:0 0 8px">
+    <strong>OrderInbox AI</strong> is the in-Odoo review queue for customer purchase orders that arrive by email.
+    The companion <em>OrderInbox appliance</em> watches your orders inbox, reads every PO in any format
+    (PDF, Excel, CSV, plain email), matches the customer and every SKU against your live Odoo catalog,
+    and validates quantities, prices, pack sizes and duplicates — then pushes the results here for a one-click decision.
+  </p>
+  <p style="font-size:15px">
+    <strong>Draft-first, by design:</strong> approving creates a <em>draft</em> sales order in your Odoo.
+    Nothing is confirmed until your team posts it, the normal way.
+  </p>
+
+  <hr style="border:none;border-top:1px solid #e6e8ea;margin:22px 0"/>
+
+  <h2 style="font-size:19px;margin:18px 0 10px">What this module gives you in Odoo</h2>
+  <ul style="font-size:15px;margin:0 0 10px;padding-left:22px">
+    <li><strong>Review queue kanban</strong> — Ready for approval / Exceptions / Draft created / Rejected, with the validation issues visible on the card</li>
+    <li><strong>Per-line match scores</strong> — every SKU shows how it was matched (exact, alias, fuzzy or LLM) and the confidence, so you know what to trust</li>
+    <li><strong>Validation issues with suggested fixes</strong> — pack-size violations, price deviations, duplicate PO numbers, currency checks</li>
+    <li><strong>One-click Approve</strong> — builds a draft <code>sale.order</code> from the matched lines (customer, PO reference, quantities, quoted prices)</li>
+    <li><strong>One-click Reject</strong> with a reason, logged to the chatter</li>
+    <li><strong>Automatic sync</strong> — a cron polls the appliance every 5 minutes; you can also push orders to <code>/orderinbox/sync</code></li>
+    <li><strong>Settings page</strong> — appliance URL, API token, match threshold, price tolerance, accepted currencies</li>
+    <li><strong>Standalone mode</strong> — no appliance? Create orders manually (or via the API) and approve them here; drafts are built entirely in Odoo</li>
+  </ul>
+
+  <h2 style="font-size:19px;margin:18px 0 10px">Screenshots</h2>
+  <p style="font-size:14px;color:#5b6570;margin:0 0 12px">The review console (appliance side) — the same data appears in Odoo via this module:</p>
+  <table style="width:100%;border-collapse:collapse">
+    <tr>
+      <td style="padding:6px;width:50%"><img src="screenshots/2-dashboard.png" width="100%" style="border:1px solid #e6e8ea;border-radius:8px" alt="Dashboard"/>
+        <div style="font-size:13px;color:#5b6570">Dashboard: ready / exception / rejected counts</div></td>
+      <td style="padding:6px;width:50%"><img src="screenshots/3-orders.png" width="100%" style="border:1px solid #e6e8ea;border-radius:8px" alt="Orders"/>
+        <div style="font-size:13px;color:#5b6570">Order list with match scores and totals</div></td>
+    </tr>
+    <tr>
+      <td style="padding:6px;width:50%"><img src="screenshots/4-exception-order.png" width="100%" style="border:1px solid #e6e8ea;border-radius:8px" alt="Exception order"/>
+        <div style="font-size:13px;color:#5b6570">Exception detail: the issue, the suggested fix, every line's match</div></td>
+      <td style="padding:6px;width:50%"><img src="screenshots/5-settings.png" width="100%" style="border:1px solid #e6e8ea;border-radius:8px" alt="Settings"/>
+        <div style="font-size:13px;color:#5b6570">Effective configuration</div></td>
+    </tr>
+  </table>
+
+  <hr style="border:none;border-top:1px solid #e6e8ea;margin:22px 0"/>
+
+  <h2 style="font-size:19px;margin:18px 0 10px">How it fits together</h2>
+  <p style="font-size:15px">
+    The heavy lifting (inbox monitoring, document extraction, local LLM inference, deterministic validation)
+    runs in the <strong>OrderInbox appliance</strong> — a Docker container on your own network. Documents never
+    leave your infrastructure. This module is the face inside Odoo:
+  </p>
+  <pre style="background:#f4f6f8;border:1px solid #e6e8ea;border-radius:8px;padding:14px;font-size:13px;overflow-x:auto">
+Customer email ──▶ OrderInbox appliance (Docker)
+                    • watches the inbox (IMAP)
+                    • reads PDF / XLSX / CSV / email
+                    • matches customer + SKUs vs live Odoo catalog
+                    • validates: packs, min order, prices, duplicates
+                    • local LLM (Qwen via Ollama) only where tables can't help
+                         │
+                         │  token-authenticated sync (every 5 min)
+                         ▼
+             This module — kanban review queue in Odoo
+                         │
+                 human approves ▼
+            draft sale.order in Odoo (you post it)</pre>
+
+  <h3 style="font-size:16px;margin:16px 0 8px">Installation &amp; setup</h3>
+  <ol style="font-size:15px;padding-left:22px;margin:0 0 10px">
+    <li>Install the module from the Odoo Apps Store (or add the addons path to your Odoo and install <code>orderinbox</code>).</li>
+    <li>Deploy the OrderInbox appliance (Docker image <code>orderinbox-ai</code>) and point it at your Odoo:
+        <code>ODOO_MODE=live ODOO_URL=… ODOO_DB=… ODOO_USERNAME=… ODOO_PASSWORD=…</code>
+        plus the orders mailbox (<code>IMAP_*</code> or Gmail).</li>
+    <li>Set <code>ORDERINBOX_API_TOKEN</code> on the appliance and enter the same token in
+        <strong>Settings → OrderInbox</strong> along with the appliance URL
+        (e.g. <code>http://appliance.lan:8501</code>).</li>
+    <li>Orders start appearing in the queue. Approve the good ones, fix or reject the exceptions.</li>
+  </ol>
+
+  <div style="background:#eef4ee;border:1px solid #cfe0c8;border-radius:8px;padding:12px 16px;font-size:14px;margin:14px 0">
+    <strong>External service notice:</strong> this module syncs with an external OrderInbox appliance
+    over HTTP using a shared token. Without an appliance it still works standalone: create records
+    manually or via the <code>/orderinbox/sync</code> endpoint and approve them in Odoo.
+  </div>
+
+  <p style="font-size:14px;color:#5b6570">
+    <strong>License:</strong> LGPL-3 &nbsp;·&nbsp; <strong>Support:</strong> support@orderinbox.ai &nbsp;·&nbsp;
+    <a href="https://github.com/Suliency/orderinbox">Source</a>
+  </p>
+</section>

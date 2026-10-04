@@ -9,8 +9,8 @@ dist/
 venv/
 
 # data / state
-data/
-spool/
+/data/
+/spool/
 *.db
 *.sqlite3
 .env

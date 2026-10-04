@@ -201,6 +201,10 @@ class StrataProvider(OpenAICompatibleProvider):
         except Exception:
             return False
         if r.status_code != 200:
+            # a refusal (403 Host check, 401 key) is a config error, not a
+            # model still loading: say why, or the app just looks model-less
+            log.warning("Strata at %s answered /health with %s: %s",
+                        self.root_url, r.status_code, (r.text or "")[:300])
             return False
         try:
             images = bool(r.json().get("images"))

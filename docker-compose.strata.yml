@@ -70,11 +70,14 @@ services:
       # yes = read scanned / image quotes (the app detects it from /health)
       - VISION=${STRATA_VISION_MODE:-no}
       - API_KEY=${STRATA_API_KEY:-}
+      # the app reaches Strata as http://strata:8080; without an API key,
+      # Strata's DNS-rebinding guard answers 403 to any Host it doesn't know
+      - STRATA_ALLOWED_HOSTS=strata
       # set LOW_RAM=on if the container has a memory limit
       - LOW_RAM=${STRATA_LOW_RAM:-auto}
-    # the monitor/chat UI, on this host only
+    # the monitor/chat UI, on this host only; STRATA_PORT if 8080 is taken
     ports:
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:${STRATA_PORT:-8080}:8080"
     ulimits:
       memlock: -1
     volumes:
@@ -84,7 +87,9 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              count: all
+              # which cards Strata may see: all, or an index / UUID from
+              # nvidia-smi ("2", "0,2") to keep it off cards other jobs use
+              device_ids: ["${STRATA_GPUS:-all}"]
               capabilities: [gpu]
     restart: unless-stopped
 

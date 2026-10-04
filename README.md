@@ -298,6 +298,12 @@ producer/verifier check.
 
 - **Bundled:** `docker compose -f docker-compose.strata.yml up` builds Strata
   `v0.1.38`, downloads the model (~70 GB, once) and wires the app to it.
+  On a shared host, `STRATA_GPUS` pins the cards it may see (an nvidia-smi
+  index or UUID, default `all`), `STRATA_PORT` moves its UI off 8080, and
+  `STRATA_LOW_RAM=mmap` keeps the experts in reclaimable file cache instead
+  of locked RAM when other services need the memory.
+  Measured on one RTX 3090 (IQ2_XS, mmap mode, warm): ~105-110 tokens/s
+  written, ~1,250-1,550 tokens/s read, 3-11 s per extraction call.
 - **Already installed on the host** (Strata's `./setup.sh`):
   `STRATA_URL=http://127.0.0.1:8080/v1` (from a container:
   `http://host.docker.internal:8080/v1`).

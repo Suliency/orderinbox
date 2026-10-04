@@ -92,6 +92,17 @@ def test_health_reports_vision(monkeypatch):
     assert p.spec.vision is True
 
 
+def test_refused_health_is_logged_with_reason(monkeypatch, caplog):
+    # e.g. Strata's DNS-rebinding guard: a 403 for a Host it does not know.
+    # Without a log line the app just looks like it has no model.
+    body = "Host 'strata:8080' is not allowed (DNS rebinding protection)"
+    monkeypatch.setattr(P.httpx, "get", lambda url, **kw: FakeResponse(403, text=body))
+    with caplog.at_level("WARNING", logger="orderinbox.ai.providers"):
+        assert _strata().available() is False
+    assert "403" in caplog.text
+    assert "DNS rebinding" in caplog.text
+
+
 def test_api_key_sent_on_health(monkeypatch):
     seen = {}
 

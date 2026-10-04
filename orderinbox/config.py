@@ -67,9 +67,16 @@ class Settings:
     ollama_url: str = field(default_factory=lambda: os.environ.get("OLLAMA_URL", "http://localhost:11434"))
     ollama_model: str = field(default_factory=lambda: os.environ.get("OLLAMA_MODEL", "qwen2.5:1.5b"))
     strata_url: str = field(default_factory=lambda: os.environ.get("STRATA_URL", ""))
-    strata_model: str = field(default_factory=lambda: os.environ.get("STRATA_MODEL", ""))
+    # Strata (github.com/Niko1221/Strata) accepts any model name; "strata" is
+    # what its docs use. Vision is also detected from its /health endpoint.
+    strata_model: str = field(default_factory=lambda: os.environ.get("STRATA_MODEL", "strata"))
     strata_api_key: str = field(default_factory=lambda: os.environ.get("STRATA_API_KEY", ""))
     strata_vision: bool = field(default_factory=lambda: _bool(os.environ.get("STRATA_VISION")))
+    # Thinking level per request: none | low | medium | high ("" = the model's
+    # own default, high). Extraction wants short thinking; "low" keeps quality.
+    strata_reasoning_effort: str = field(default_factory=lambda: os.environ.get("STRATA_REASONING_EFFORT", "low").strip().lower())
+    # Optional hard cap on thinking tokens (0 = no cap).
+    strata_reasoning_budget: int = field(default_factory=lambda: int(_float(os.environ.get("STRATA_REASONING_BUDGET"), 0)))
     vllm_url: str = field(default_factory=lambda: os.environ.get("VLLM_URL", ""))
     vllm_model: str = field(default_factory=lambda: os.environ.get("VLLM_MODEL", ""))
     vllm_api_key: str = field(default_factory=lambda: os.environ.get("VLLM_API_KEY", ""))

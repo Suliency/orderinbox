@@ -187,6 +187,7 @@ def extract_quote_from_text(text: str) -> Optional[dict]:
 
     # base freight: "USD 1,925 / 40HQ" (optionally prefixed O/F, ocean)
     m = re.search(r"\b(usd|eur|cad|cny|gbp|jpy)\s?\$?\s?(\d[\d,]*)\s*/\s*(\d{2}[a-z]{0,3})", tl)
+    base_span = m.span() if m else None
     if m:
         out["base_freight"] = {
             "amount": float(m.group(2).replace(",", "")),
@@ -223,7 +224,11 @@ def extract_quote_from_text(text: str) -> Optional[dict]:
 
     # explicit charges: "DTHC CAD 735", "DOC USD 50", "THC CNY 1200"
     charges = []
-    for m in re.finditer(r"\b([A-Za-z]{2,8})\s+(usd|eur|cad|cny|gbp|jpy)\s+(\d[\d,]*(?:\.\d+)?)\b", tl):
+    # Label and amount on one line ([ \t], not \s): across a line break the
+    # previous line's last word (a subject's "rates") would label the rate.
+    for m in re.finditer(r"\b([A-Za-z]{2,8})[ \t]+(usd|eur|cad|cny|gbp|jpy)[ \t]+(\d[\d,]*(?:\.\d+)?)\b", tl):
+        if base_span and m.start(2) == base_span[0]:
+            continue   # "Ocean freight USD 1,925 / 40HQ" is the base, not a charge
         charges.append({"type": m.group(1), "currency": m.group(2).upper(),
                         "amount": float(m.group(3).replace(",", ""))})
     if charges:
@@ -399,6 +404,21 @@ def _llm_extract(text: str, kind: str, llm: LLMClient, settings: Settings) -> Op
         return None
 
 
+_PORT_KEYS = ("origin_port", "destination_port")
+
+
+def _merge_hybrid(det: dict, llmres: dict) -> dict:
+    """Deterministic values win on overlap — except a port the parser
+    captured from prose ("OUT OF NINGBO GOING") that does not resolve, when
+    the model's port does."""
+    merged = {**llmres, **{k: v for k, v in det.items() if v}}
+    for key in _PORT_KEYS:
+        d, m = det.get(key), llmres.get(key)
+        if d and m and not ontology.lookup_port(str(d)) and ontology.lookup_port(str(m)):
+            merged[key] = m
+    return merged
+
+
 def extract_freight(text: str, kind: str, llm: Optional[LLMClient],
                     settings: Settings) -> tuple[dict, str]:
     """Extract a freight object (rfq|quote) from text.
@@ -416,8 +436,7 @@ def extract_freight(text: str, kind: str, llm: Optional[LLMClient],
             if llm is not None and llm.available():
                 llmres = _llm_extract(text, "quote", llm, settings)
                 if llmres:
-                    merged = {**llmres, **det}   # deterministic wins on overlap
-                    return merged, "hybrid"
+                    return _merge_hybrid(det, llmres), "hybrid"
             return det, "deterministic"
         if llm is not None and llm.available():
             llmres = _llm_extract(text, "quote", llm, settings)
@@ -433,8 +452,7 @@ def extract_freight(text: str, kind: str, llm: Optional[LLMClient],
         if llm is not None and llm.available():
             llmres = _llm_extract(text, "rfq", llm, settings)
             if llmres:
-                merged = {**llmres, **{k: v for k, v in det.items() if v}}
-                return merged, "hybrid"
+                return _merge_hybrid(det, llmres), "hybrid"
         return det, "deterministic"
     if llm is not None and llm.available():
         llmres = _llm_extract(text, "rfq", llm, settings)

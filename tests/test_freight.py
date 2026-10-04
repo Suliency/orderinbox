@@ -226,3 +226,55 @@ def test_fx_unknown_currency_raises():
     from orderinbox.freight import fx
     with pytest.raises(ValueError):
         fx.rate("XXX")
+
+
+def test_included_surcharge_is_not_conditional():
+    """A model may list "incl BAF, CAF" surcharges as conditional too (seen
+    with Qwen3.8). Included means already in the rate: no review flag."""
+    from orderinbox.freight.quote import normalize_quote
+    q = normalize_quote({
+        "origin_port": "SHA", "destination_port": "VAN", "equipment": "40HC",
+        "base_freight": {"amount": 1850, "currency": "USD"},
+        "included": ["BAF", "CAF"],
+        "conditional_charges": ["BAF", "CAF", "PSS"],
+    })
+    assert q.conditional_charges == ["PSS"]
+    assert q.requires_review is True
+
+
+@pytest.mark.parametrize("text", [
+    # subject word on the line above the rate ("RE: rates" + body)
+    "RE: rates\n\nUSD 1,925 / 40HQ\nPOL: SHA\nPOD: VAN\nDOC USD 50",
+    # base rate written with a label on the same line
+    "Ocean freight USD 1,925 / 40HQ\nPOL: SHA\nPOD: VAN\nDOC USD 50",
+])
+def test_base_freight_is_not_also_a_charge(text):
+    from orderinbox.freight.extract import extract_quote_from_text
+    raw = extract_quote_from_text(text)
+    assert raw["base_freight"] == {"amount": 1925.0, "currency": "USD"}
+    assert [(c["type"], c["amount"]) for c in raw["charges"]] == [("doc", 50.0)]
+
+
+class _StubLLM:
+    def __init__(self, payload):
+        self.payload = payload
+
+    def available(self):
+        return True
+
+    def extract_json(self, system, user, **kw):
+        return dict(self.payload)
+
+
+def test_hybrid_rfq_keeps_model_port_when_parsed_port_is_garbage(env):
+    """Prose like "out of Ningbo going to Montreal" makes the regex capture
+    "OUT OF NINGBO GOING"; the model's resolvable port must win then."""
+    from orderinbox.freight.extract import extract_freight
+    settings = env[0]
+    text = ("can you get us pricing for 3 forty-foot high cubes out of Ningbo going "
+            "to Montreal? 40HC, cargo ready around Nov 2.")
+    llm = _StubLLM({"origin_port": "Ningbo", "destination_port": "Montreal",
+                    "equipment": "40HC", "container_count": 3})
+    raw, method = extract_freight(text, "rfq", llm, settings)
+    assert method == "hybrid"
+    assert raw["origin_port"] == "Ningbo"

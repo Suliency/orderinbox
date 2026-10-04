@@ -46,11 +46,14 @@ class ModelGateway:
         return self.router.available()
 
     def providers_summary(self) -> list[dict]:
+        # availability first: a health check may update the spec (Strata
+        # reports vision on /health)
+        usable = [self._usable(p) for p in self.providers]
         return [
             {"name": p.spec.label or p.spec.family, "family": p.spec.family,
              "kind": p.spec.kind, "strength": p.spec.strength,
-             "vision": p.spec.vision, "available": self._usable(p)}
-            for p in self.providers
+             "vision": p.spec.vision, "available": ok}
+            for p, ok in zip(self.providers, usable)
         ]
 
     @staticmethod

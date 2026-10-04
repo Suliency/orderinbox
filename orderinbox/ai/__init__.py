@@ -18,6 +18,7 @@ from .providers import (
     STRENGTH_FAST,
     STRENGTH_MEDIUM,
     STRENGTH_STRONG,
+    StrataProvider,
     build_providers,
     parse_json_loose,
 )
@@ -29,7 +30,7 @@ __all__ = [
     "ModelRouter", "RouteRequest", "RouteDecision",
     "EscalationPolicy", "EscalationThresholds", "EscalationDecision", "Tier",
     "ProviderSpec", "build_providers", "parse_json_loose", "LLMError",
-    "OpenAICompatibleProvider", "OllamaProvider", "AnthropicProvider", "GeminiProvider",
+    "OpenAICompatibleProvider", "StrataProvider", "OllamaProvider", "AnthropicProvider", "GeminiProvider",
     "STRENGTH_FAST", "STRENGTH_MEDIUM", "STRENGTH_STRONG",
     "FieldProvenance", "Source", "provenance",
     "Verdict", "FieldDiff", "compare",

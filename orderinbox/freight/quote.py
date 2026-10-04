@@ -192,6 +192,9 @@ def normalize_quote(data: dict) -> FreightQuote:
         code, _ = normalize_charge_term(str(code))
         if code and code not in conditional:
             conditional.append(code)
+    # "incl BAF/CAF" means the surcharge is already in the rate — it cannot
+    # also be an open conditional cost, whatever the extractor said.
+    conditional = [c for c in conditional if c not in inc]
 
     ft = data.get("free_time") or {}
     free_time = FreeTime(

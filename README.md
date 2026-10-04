@@ -279,13 +279,34 @@ item stays approvable.
 | Mode | Where inference runs | How |
 |---|---|---|
 | **A — hosted** | our GPU infrastructure | we run the appliance for you |
-| **B — private** | the customer's own GPU/server | `docker compose -f docker-compose.strata.yml up` — two local model servers (main + independent verifier), no cloud |
+| **B — private** | the customer's own GPU/server | `docker compose -f docker-compose.strata.yml up` — [Strata](https://github.com/Niko1221/Strata) as the main local model (`--profile verifier` adds an independent verifier), no cloud |
 | **C — hybrid** | small local model, optional cloud fallback | `LLM_MODE=auto` (default): local first, cloud fallback only for the ambiguous tail |
 
 In every mode the model is behind the gateway, so you can start on a small
 local model and move to a stronger local model (or a DGX Spark running the
 main + verifier models) or a cloud endpoint by changing configuration — not
 code.
+
+### Strata, the local model
+
+[Strata](https://github.com/Niko1221/Strata) runs Qwen3.8-Flash-Next (a 125B
+mixture-of-experts model) on a single 12 GB+ graphics card with 32-64 GB of
+RAM, behind an OpenAI-compatible API. Point `STRATA_URL` at it and it becomes
+the main local model: the router gives it the volume ahead of the small
+Ollama model, which stays as fallback and as the second model for the
+producer/verifier check.
+
+- **Bundled:** `docker compose -f docker-compose.strata.yml up` builds Strata
+  `v0.1.38`, downloads the model (~70 GB, once) and wires the app to it.
+- **Already installed on the host** (Strata's `./setup.sh`):
+  `STRATA_URL=http://127.0.0.1:8080/v1` (from a container:
+  `http://host.docker.internal:8080/v1`).
+- The app polls Strata's `/health` every 30 s until the model has loaded, so
+  start order doesn't matter. Vision (scanned quotes) is detected from the
+  same endpoint.
+- Strata thinks at level *high* by default. Extraction calls ask for
+  `STRATA_REASONING_EFFORT=low`; use `none` for maximum throughput, since Strata
+  answers one request at a time.
 
 ## Connecting a real Odoo
 
@@ -329,7 +350,8 @@ Key ones:
 | `IMAP_HOST/PORT/USERNAME/PASSWORD/FOLDER` | — | inbox to watch |
 | `LLM_MODE` | `auto` | `auto` = local first, cloud fallback; `ollama`/`cloud`/`off` |
 | `OLLAMA_URL` / `OLLAMA_MODEL` | `localhost:11434` / `qwen2.5:1.5b` | local model (zero-config default) |
-| `STRATA_URL` / `STRATA_MODEL` | — | local Strata model server (OpenAI-compatible), e.g. a DGX Spark |
+| `STRATA_URL` / `STRATA_MODEL` | — / `strata` | [Strata](https://github.com/Niko1221/Strata) local model server — the main local model when set |
+| `STRATA_REASONING_EFFORT` / `STRATA_REASONING_BUDGET` | `low` / `0` | Strata thinking level per request, optional hard token cap |
 | `VLLM_URL` / `VLLM_MODEL` | — | second local model (independent verifier / vision) |
 | `LLM_CLOUD_BASE_URL/API_KEY/MODEL` | — | OpenAI-compatible cloud (escalation target) |
 | `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` | — | Anthropic / Gemini cloud providers |

@@ -1,24 +1,25 @@
-# RateScout / OrderInbox — Private (on-prem) deployment with local models
+# RateScout / OrderInbox — Private (on-prem) deployment with a Strata local model
 #
 # This is "Mode B — Private Deployment" (proposal Section 14): everything runs
-# in the customer's infrastructure. Two local model servers stand in for the
-# dual DGX Spark layout (Section 15):
+# in the customer's infrastructure, and no commercial data leaves the network.
 #
-#   model-main     the main local LLM (complex reasoning, document
-#                  interpretation)  -> exposed as the "Strata" local AI API
-#   model-verifier the second, independent model (producer/verifier check,
-#                  Section 11) and a home for vision/embedding workloads
+#   strata          the main local LLM: Strata (github.com/Niko1221/Strata)
+#                   serving Qwen3.8-Flash-Next, a 125B mixture-of-experts
+#                   model, on one NVIDIA card with 12 GB+ VRAM and 32-64 GB RAM
+#   model-verifier  optional second, independent model (producer/verifier
+#                   check, Section 11) for a second GPU / DGX Spark
 #
-# The app is local-first: it talks to model-main for the volume, uses
-# model-verifier as the independent second pass for the VERIFY confidence band,
-# and only escalates to a cloud provider (if configured) for genuinely
-# ambiguous work. No commercial data needs to leave this network.
+#   docker compose -f docker-compose.strata.yml up                       # Strata only
+#   docker compose -f docker-compose.strata.yml --profile verifier up    # + verifier
 #
-#   docker compose -f docker-compose.strata.yml up
+# First start: the image build compiles the Strata engine (~20-40 min), then
+# the container downloads the model (~70 GB) into the strata-data volume and
+# loads it (1-3 min; the host can be sluggish meanwhile). The app is up at once
+# and starts using Strata as soon as its /health answers — it re-checks every
+# 30 s, so nothing needs a restart. Later starts skip the build and download.
 #
-# Adjust the two model names to what is available on your hardware. Any
-# OpenAI-compatible server works in either slot (vLLM, SGLang, TGI, llama.cpp,
-# the Strata runtime, ...).
+# Already running Strata on the host (./setup.sh)? Skip this file; use the
+# normal stack with STRATA_URL=http://host.docker.internal:8080/v1.
 services:
   orderinbox:
     build: .
@@ -26,42 +27,58 @@ services:
     ports:
       - "8501:8501"
     environment:
-      # local-first: main model on spark 1, verifier on spark 2
-      - STRATA_URL=http://model-main:8000/v1
-      - STRATA_MODEL=main-model
+      - STRATA_URL=http://strata:8080/v1
+      - STRATA_MODEL=strata
+      - STRATA_API_KEY=${STRATA_API_KEY:-}
+      # none | low | medium | high — thinking per request (Strata default: high)
+      - STRATA_REASONING_EFFORT=${STRATA_REASONING_EFFORT:-low}
+      # used only with --profile verifier; unreachable otherwise (ignored)
       - VLLM_URL=http://model-verifier:8000/v1
       - VLLM_MODEL=verifier-model
-      # cloud is optional; leave unset for a fully private deployment
-      # (set LLM_MODE=auto so the local servers are used first)
+      # local-first; cloud stays off unless LLM_CLOUD_* / ANTHROPIC_* are set
       - LLM_MODE=auto
-      - OLLAMA_URL=http://model-main:8000   # not required; local servers above
+      - OLLAMA_URL=
       - ODOO_MODE=${ODOO_MODE:-mock}
       - WEB_PASSWORD=${WEB_PASSWORD:-ratescout}
       - ORDERINBOX_API_TOKEN=${ORDERINBOX_API_TOKEN:-private-bridge-token}
     depends_on:
-      model-main:
-        condition: service_started
-      model-verifier:
+      # started, not healthy: the first model download outlasts any sane
+      # healthcheck window, and the app polls Strata's /health itself
+      strata:
         condition: service_started
     volumes:
       - rs-data:/data
     restart: unless-stopped
 
-  # Main local model — the reasoning / document-interpretation engine.
-  # Serves an OpenAI-compatible API. Point this at a DGX Spark with a strong
-  # 14B-70B model (Section 15: DGX Spark #1).
-  model-main:
-    image: ghcr.io/vllm/vllm-openai:latest
-    command:
-      - --model
-      - Qwen/Qwen2.5-72B-Instruct   # <-- the main model
-      - --served-model-name
-      - main-model
-      - --port
-      - "8000"
+  # Main local model — Strata. OpenAI-compatible API on :8080/v1, plus the
+  # Strata app (chat + live GPU/RAM monitor) at http://127.0.0.1:8080.
+  strata:
+    build:
+      context: https://github.com/Niko1221/Strata.git#v0.1.38
+      args:
+        # RTX 20/30/40/50 + A-series; narrow to your card for a faster build
+        # (e.g. 89 = RTX 40, 120 = RTX 50)
+        CUDA_ARCHITECTURES: ${STRATA_CUDA_ARCHITECTURES:-75;80;86;89;120}
+        BUILD_VISION: ${STRATA_BUILD_VISION:-1}
+    image: strata:v0.1.38
+    environment:
+      # Q2_0 | IQ2_XS | IQ3_XXS | IQ3_S — IQ2_XS fits 48-64 GB RAM
+      - MODEL=${STRATA_SIZE:-IQ2_XS}
+      # qwen | swift | coder
+      - FAMILY=${STRATA_FAMILY:-qwen}
+      - CONTEXT=${STRATA_CONTEXT:-32768}
+      # yes = read scanned / image quotes (the app detects it from /health)
+      - VISION=${STRATA_VISION_MODE:-no}
+      - API_KEY=${STRATA_API_KEY:-}
+      # set LOW_RAM=on if the container has a memory limit
+      - LOW_RAM=${STRATA_LOW_RAM:-auto}
+    # the monitor/chat UI, on this host only
+    ports:
+      - "127.0.0.1:8080:8080"
+    ulimits:
+      memlock: -1
     volumes:
-      - model-cache:/root/.cache/huggingface
-    # DGX Spark / NVIDIA host: reserve the GPU.
+      - strata-data:/data
     deploy:
       resources:
         reservations:
@@ -72,8 +89,9 @@ services:
     restart: unless-stopped
 
   # Second local model — the independent producer/verifier pass (Section 11)
-  # and the home for vision / embedding / reranker workloads (DGX Spark #2).
+  # on a second GPU or DGX Spark. Opt-in: --profile verifier.
   model-verifier:
+    profiles: ["verifier"]
     image: ghcr.io/vllm/vllm-openai:latest
     command:
       - --model
@@ -95,4 +113,5 @@ services:
 
 volumes:
   rs-data:
+  strata-data:
   model-cache:

@@ -2,6 +2,7 @@
 intake through the pipeline, lane linking, comparison, margin gate, and the
 approval actions. LLM off — deterministic paths only.
 """
+import re
 from email.message import EmailMessage
 from types import SimpleNamespace
 
@@ -157,8 +158,9 @@ def test_quote_links_rfq_ranks_and_margins(env, tmp_path):
     assert a.status.value == "ready" and a.margin_pct > 10
     assert b.status.value == "exception"
     assert any(i.code == "MARGIN_BELOW_THRESHOLD" for i in b.issues)
-    # comparison text names the cheapest counterparty
-    assert "Shanghaiabc" in b.recommendation
+    # comparison text names the cheapest counterparty: "Shanghaiabc" from the
+    # sender domain without a model, "Shanghai ABC Logistics" with one
+    assert "shanghaiabc" in re.sub(r"[^a-z]", "", b.recommendation.lower())
     # earlier sibling's recommendation was refreshed when B arrived
     a_fresh = next(c for c in store.list_freight(kind="quote") if c.uid == a.uid)
     assert "ranked 2 of 2" in a_fresh.recommendation or "lowest of 2" in a_fresh.recommendation

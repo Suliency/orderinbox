@@ -28,7 +28,9 @@ def test_demo_seeding_runs_in_background(env, monkeypatch):
     assert ctx.store.counts_by_status() == {}
 
     release.set()
-    ctx.seed_thread.join(timeout=30)
+    # join returns as soon as seeding ends; the long cap is for a real local
+    # model (11 demo emails take ~50 s on Strata, minutes on CPU)
+    ctx.seed_thread.join(timeout=600)
     assert not ctx.seed_thread.is_alive()
     assert ctx.store.counts_by_status() == {"exception": 3, "ready": 3, "rejected": 1}
 
